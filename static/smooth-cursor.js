@@ -1,8 +1,8 @@
 /*
  * Adapted from Magic UI Smooth Cursor (https://magicui.design/docs/components/smooth-cursor), original concept by @Code_Parth.
+ * Copyright (c) Magic UI
  *
  * MIT License
- * Copyright (c) Magic UI
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,314 +22,348 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-(function () {
+
+(() => {
   "use strict";
 
-  try {
-    const pointerQuery = window.matchMedia("(any-hover: hover) and (any-pointer: fine)");
-    const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const root = document.documentElement;
-    const controlSelector = [
-      "textarea",
-      "select",
-      "[contenteditable]:not([contenteditable='false'])",
-      "input[type='text']",
-      "input[type='email']",
-      "input[type='password']",
-      "input[type='search']",
-      "input[type='url']",
-      "input[type='tel']",
-      "input[type='number']",
-      "input[type='checkbox']",
-      "input[type='radio']",
-      "input[type='range']",
-      "input[type='file']",
-    ].join(",");
-    const hoverSelector = "a, button, [role='button'], summary, label, input[type='submit']";
-    const optOutSelector = "[data-no-custom-cursor], iframe, embed, object";
+  const POINTER_QUERY = "(any-hover: hover) and (any-pointer: fine)";
+  const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
+  const EXCLUDED_SELECTOR = [
+    "textarea",
+    "select",
+    'input:not([type])',
+    'input[type=""]',
+    'input[type="text"]',
+    'input[type="email"]',
+    'input[type="password"]',
+    'input[type="search"]',
+    'input[type="url"]',
+    'input[type="tel"]',
+    'input[type="number"]',
+    'input[type="checkbox"]',
+    'input[type="radio"]',
+    'input[type="range"]',
+    'input[type="file"]',
+    '[contenteditable]:not([contenteditable="false"])',
+    "iframe",
+    "embed",
+    "object",
+    "video",
+    "[data-no-custom-cursor]",
+  ].join(",");
+  const INTERACTIVE_SELECTOR = 'a, button, [role="button"], summary, label, input[type="submit"]';
 
-    let cursor = null;
-    let enabled = false;
-    let visible = false;
-    let hoverTarget = null;
-    let lastPointer = null;
-    let lastFrameTime = 0;
-    let moveFrame = 0;
-    let springFrame = 0;
-    let scaleTimeout = 0;
-    let previousAngle = 0;
-    let accumulatedRotation = 0;
-    let lastMoveTime = 0;
-    let lastMoveX = 0;
-    let lastMoveY = 0;
+  let pointerQuery;
+  let reducedMotionQuery;
+  let cursor = null;
+  let frameId = 0;
+  let scaleTimeout = 0;
+  let lastFrameTime = 0;
+  let lastPointer = null;
+  let lastPointerTime = 0;
+  let directionOrigin = null;
+  let directionOriginTime = 0;
+  let pendingPointer = null;
+  let initialized = false;
+  let stopped = false;
+  let needsSnap = true;
+  let visible = false;
+  let moving = false;
+  let hovering = false;
+  let previousAngle = null;
 
-    const springs = {
-      x: { position: 0, target: 0, velocity: 0, stiffness: 400, damping: 45, mass: 1 },
-      y: { position: 0, target: 0, velocity: 0, stiffness: 400, damping: 45, mass: 1 },
-      rotation: { position: 0, target: 0, velocity: 0, stiffness: 300, damping: 60, mass: 1 },
-      scale: { position: 1, target: 1, velocity: 0, stiffness: 500, damping: 35, mass: 1 },
-    };
+  const springs = {
+    x: { position: 0, velocity: 0, target: 0, stiffness: 400, damping: 45, mass: 1 },
+    y: { position: 0, velocity: 0, target: 0, stiffness: 400, damping: 45, mass: 1 },
+    rotation: { position: 0, velocity: 0, target: 0, stiffness: 300, damping: 60, mass: 1 },
+    scale: { position: 1, velocity: 0, target: 1, stiffness: 500, damping: 35, mass: 1 },
+  };
 
-    const svgMarkup =
-      '<svg class="sc-arrow" xmlns="http://www.w3.org/2000/svg" width="50" height="54" viewBox="0 0 50 54" fill="none" aria-hidden="true">' +
-      '<path d="M42.6817 41.1495L27.5103 6.79925C26.7269 5.02557 24.2082 5.02558 23.3927 6.79925L7.59814 41.1495C6.75833 42.9759 8.52712 44.8902 10.4125 44.1954L24.3757 39.0496C24.8829 38.8627 25.4385 38.8627 25.9422 39.0496L39.8121 44.1954C41.6849 44.8902 43.4884 42.9759 42.6817 41.1495Z" fill="var(--sc-fill, #fff)" />' +
-      '<path d="M43.7146 40.6933L28.5431 6.34306C27.3556 3.65428 23.5772 3.69516 22.3668 6.32755L6.57226 40.6778C5.3134 43.4156 7.97238 46.298 10.803 45.2549L24.7662 40.109C25.0221 40.0147 25.2999 40.0156 25.5494 40.1082L39.4193 45.254C42.2261 46.2953 44.9254 43.4347 43.7146 40.6933Z" fill="none" stroke="var(--sc-stroke, #000)" stroke-width="2.25825" />' +
-      "</svg>";
+  const guard = (callback) => (...args) => {
+    try {
+      callback(...args);
+    } catch (error) {
+      fail(error);
+    }
+  };
 
-    function setVisible(nextVisible) {
-      visible = nextVisible;
-      if (cursor) cursor.classList.toggle("sc-visible", visible);
-      root.classList.toggle("sc-active", visible);
+  const safeTarget = (target) => target instanceof Element ? target : null;
+  const closest = (target, selector) => safeTarget(target)?.closest(selector) ?? null;
+
+  const updateScaleTarget = () => {
+    springs.scale.target = moving ? 0.95 : hovering ? 1.08 : 1;
+    requestFrame();
+  };
+
+  const setCursorVisible = (nextVisible) => {
+    visible = nextVisible;
+    if (!cursor) return;
+    cursor.style.opacity = nextVisible ? "1" : "0";
+    if (nextVisible) document.documentElement.classList.add("sc-active");
+    else document.documentElement.classList.remove("sc-active");
+  };
+
+  const hideCursor = () => {
+    setCursorVisible(false);
+    needsSnap = true;
+    pendingPointer = null;
+    lastPointer = null;
+    directionOrigin = null;
+    previousAngle = null;
+    hovering = false;
+    moving = false;
+    if (scaleTimeout) {
+      clearTimeout(scaleTimeout);
+      scaleTimeout = 0;
+    }
+    springs.scale.target = 1;
+    if (frameId) {
+      cancelAnimationFrame(frameId);
+      frameId = 0;
+    }
+  };
+
+  const isResting = (spring) =>
+    Math.abs(spring.position - spring.target) <= 0.001 && Math.abs(spring.velocity) <= 0.01;
+
+  const integrate = (spring, dt) => {
+    const acceleration =
+      (-spring.stiffness * (spring.position - spring.target) - spring.damping * spring.velocity) /
+      spring.mass;
+    spring.velocity += acceleration * dt;
+    spring.position += spring.velocity * dt;
+    if (isResting(spring)) {
+      spring.position = spring.target;
+      spring.velocity = 0;
+    }
+  };
+
+  const wrapAngleDifference = (difference) => {
+    while (difference > 180) difference -= 360;
+    while (difference < -180) difference += 360;
+    return difference;
+  };
+
+  const processPointer = (pointer) => {
+    if (pointer.pointerType === "touch") {
+      hideCursor();
+      return;
+    }
+    if (pointer.excluded) {
+      hideCursor();
+      return;
     }
 
-    function createCursor() {
-      cursor = document.createElement("div");
-      cursor.id = "smooth-cursor";
-      cursor.className = "sc-cursor";
-      cursor.setAttribute("aria-hidden", "true");
-      cursor.innerHTML = svgMarkup;
-      document.body.appendChild(cursor);
+    const now = Number.isFinite(pointer.time) ? pointer.time : performance.now();
+    const point = { x: pointer.x, y: pointer.y };
+    if (needsSnap) {
+      springs.x.position = point.x;
+      springs.x.velocity = 0;
+      springs.y.position = point.y;
+      springs.y.velocity = 0;
+      springs.x.target = point.x;
+      springs.y.target = point.y;
+      needsSnap = false;
     }
 
-    function isSuppressed(target) {
-      return target instanceof Element && Boolean(target.closest(controlSelector + "," + optOutSelector));
+    let speed = 0;
+    if (lastPointer) {
+      const elapsed = Math.max(1, now - lastPointerTime);
+      const vx = (point.x - lastPointer.x) / elapsed;
+      const vy = (point.y - lastPointer.y) / elapsed;
+      speed = Math.hypot(vx, vy);
     }
 
-    function isHoverTarget(target) {
-      return target instanceof Element ? target.closest(hoverSelector) : null;
-    }
-
-    function applyTransform() {
-      if (!cursor) return;
-      const { x, y, rotation, scale } = springs;
-      cursor.style.transform =
-        "translate3d(" + x.position + "px, " + y.position + "px, 0) translate(-50%, -50%) rotate(" +
-        rotation.position + "deg) scale(" + scale.position + ")";
-    }
-
-    function settle(spring) {
-      if (Math.abs(spring.target - spring.position) <= 0.001 && Math.abs(spring.velocity) <= 0.01) {
-        spring.position = spring.target;
-        spring.velocity = 0;
-        return true;
-      }
-      return false;
-    }
-
-    function animateSprings(now) {
-      try {
-        const dt = Math.min(Math.max((now - lastFrameTime) / 1000, 0), 1 / 30);
-        lastFrameTime = now;
-        let allSettled = true;
-
-        for (const spring of Object.values(springs)) {
-          const acceleration =
-            (-spring.stiffness * (spring.position - spring.target) - spring.damping * spring.velocity) /
-            spring.mass;
-          spring.velocity += acceleration * dt;
-          spring.position += spring.velocity * dt;
-          if (!settle(spring)) allSettled = false;
-        }
-
-        applyTransform();
-        if (allSettled) {
-          springFrame = 0;
-          return;
-        }
-        springFrame = requestAnimationFrame(animateSprings);
-      } catch (error) {
-        failSafe(error);
-      }
-    }
-
-    function startSpringLoop() {
-      if (springFrame) return;
-      lastFrameTime = performance.now();
-      springFrame = requestAnimationFrame(animateSprings);
-    }
-
-    function processPointerMove() {
-      moveFrame = 0;
-      if (!enabled || !lastPointer) return;
-
-      try {
-        const { x, y, time, target, pointerType } = lastPointer;
-        if (pointerType === "touch") {
-          setVisible(false);
-          hoverTarget = null;
-          lastMoveTime = 0;
-          if (cursor) cursor.classList.remove("sc-hover");
-          return;
-        }
-        if (isSuppressed(target)) {
-          setVisible(false);
-          hoverTarget = null;
-          lastMoveTime = 0;
-          if (cursor) cursor.classList.remove("sc-hover");
-          return;
-        }
-
-        const nextHoverTarget = isHoverTarget(target);
-        if (nextHoverTarget !== hoverTarget) {
-          hoverTarget = nextHoverTarget;
-          cursor.classList.toggle("sc-hover", Boolean(hoverTarget));
-        }
-
-        if (!visible) {
-          springs.x.position = springs.x.target = x;
-          springs.y.position = springs.y.target = y;
-          springs.x.velocity = springs.y.velocity = 0;
-          applyTransform();
-          setVisible(true);
-        }
-
-        springs.x.target = x;
-        springs.y.target = y;
-        if (lastMoveTime) {
-          const elapsed = time - lastMoveTime;
-          if (elapsed > 0) {
-            const velocityX = (x - lastMoveX) / elapsed;
-            const velocityY = (y - lastMoveY) / elapsed;
-            const speed = Math.hypot(velocityX, velocityY);
-            if (speed > 0.1) {
-              const angle = (Math.atan2(velocityY, velocityX) * 180) / Math.PI + 90;
-              let angleDifference = angle - previousAngle;
-              if (angleDifference > 180) angleDifference -= 360;
-              if (angleDifference < -180) angleDifference += 360;
-              accumulatedRotation += angleDifference;
-              springs.rotation.target = accumulatedRotation;
-              previousAngle = angle;
-              springs.scale.target = 0.95;
-              window.clearTimeout(scaleTimeout);
-              scaleTimeout = window.setTimeout(() => {
-                springs.scale.target = 1;
-                startSpringLoop();
-              }, 150);
-            }
+    if (directionOrigin) {
+      const dx = point.x - directionOrigin.x;
+      const dy = point.y - directionOrigin.y;
+      const distance = Math.hypot(dx, dy);
+      const elapsed = Math.max(1, now - directionOriginTime);
+      const directionSpeed = distance / elapsed;
+      // Accumulate sub-pixel events, but do not let tiny device jitter steer the cursor.
+      if (distance >= 0.75) {
+        if (directionSpeed > 0.1) {
+          const angle = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
+          if (previousAngle === null) {
+            springs.rotation.target += wrapAngleDifference(angle - springs.rotation.target);
+          } else {
+            springs.rotation.target += wrapAngleDifference(angle - previousAngle);
           }
+          previousAngle = angle;
         }
-        lastMoveTime = time;
-        lastMoveX = x;
-        lastMoveY = y;
-        startSpringLoop();
-      } catch (error) {
-        failSafe(error);
+        directionOrigin = point;
+        directionOriginTime = now;
       }
+    } else {
+      directionOrigin = point;
+      directionOriginTime = now;
     }
 
-    function onPointerMove(event) {
-      try {
-        if (event.pointerType === "touch") {
-          lastPointer = { pointerType: "touch" };
-        } else {
-          lastPointer = {
-            x: event.clientX,
-            y: event.clientY,
-            time: event.timeStamp || performance.now(),
-            target: event.target,
-            pointerType: event.pointerType,
-          };
-        }
-        if (!moveFrame) moveFrame = requestAnimationFrame(processPointerMove);
-      } catch (error) {
-        failSafe(error);
-      }
-    }
-
-    function onPointerOver(event) {
-      try {
-        if (event.pointerType === "touch" || isSuppressed(event.target)) {
-          setVisible(false);
-          hoverTarget = null;
-          lastMoveTime = 0;
-          if (cursor) cursor.classList.remove("sc-hover");
-          return;
-        }
-        hoverTarget = isHoverTarget(event.target);
-        if (cursor) cursor.classList.toggle("sc-hover", Boolean(hoverTarget));
-      } catch (error) {
-        failSafe(error);
-      }
-    }
-
-    function onPointerOut(event) {
-      try {
-        if (event.relatedTarget === null) onPointerLeave();
-      } catch (error) {
-        failSafe(error);
-      }
-    }
-
-    function onPointerLeave() {
-      try {
-        setVisible(false);
-        hoverTarget = null;
-        lastMoveTime = 0;
-        if (cursor) cursor.classList.remove("sc-hover");
-      } catch (error) {
-        failSafe(error);
-      }
-    }
-
-    function onVisibilityChange() {
-      if (document.hidden) onPointerLeave();
-    }
-
-    function removeListeners() {
-      window.removeEventListener("pointermove", onPointerMove);
-      window.removeEventListener("pointerleave", onPointerLeave);
-      window.removeEventListener("pointerout", onPointerOut);
-      document.removeEventListener("pointerover", onPointerOver);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-    }
-
-    function deactivate() {
-      enabled = false;
-      setVisible(false);
-      removeListeners();
-      if (moveFrame) cancelAnimationFrame(moveFrame);
-      if (springFrame) cancelAnimationFrame(springFrame);
+    if (speed > 0.1) {
+      moving = true;
+      updateScaleTarget();
       if (scaleTimeout) clearTimeout(scaleTimeout);
-      moveFrame = springFrame = scaleTimeout = 0;
-      lastPointer = null;
-      if (cursor) cursor.remove();
-      cursor = null;
+      scaleTimeout = window.setTimeout(guard(() => {
+          moving = false;
+          scaleTimeout = 0;
+          updateScaleTarget();
+      }), 150);
     }
 
-    function activate() {
-      if (enabled || !pointerQuery.matches || motionQuery.matches || !document.body) return;
-      enabled = true;
-      try {
-        createCursor();
-        window.addEventListener("pointermove", onPointerMove, { passive: true });
-        window.addEventListener("pointerleave", onPointerLeave);
-        window.addEventListener("pointerout", onPointerOut);
-        document.addEventListener("pointerover", onPointerOver, { passive: true });
-        document.addEventListener("visibilitychange", onVisibilityChange);
-      } catch (error) {
-        failSafe(error);
+    lastPointer = point;
+    lastPointerTime = now;
+    springs.x.target = point.x;
+    springs.y.target = point.y;
+    setCursorVisible(true);
+  };
+
+  const renderFrame = (time) => {
+    frameId = 0;
+    if (stopped || !cursor) return;
+
+    try {
+      if (pendingPointer) {
+        const pointer = pendingPointer;
+        pendingPointer = null;
+        processPointer(pointer);
       }
-    }
 
-    function failSafe(error) {
-      deactivate();
-      pointerQuery.removeEventListener("change", onMediaChange);
-      motionQuery.removeEventListener("change", onMediaChange);
-      console.warn("Smooth cursor disabled; the native cursor remains available.", error);
-    }
+      if (!visible) return;
+      const dt = lastFrameTime ? Math.min((time - lastFrameTime) / 1000, 1 / 30) : 1 / 60;
+      lastFrameTime = time;
+      Object.values(springs).forEach((spring) => integrate(spring, dt));
+      cursor.style.transform =
+        `translate3d(${springs.x.position}px, ${springs.y.position}px, 0) ` +
+        `translate(-50%, -50%) rotate(${springs.rotation.position}deg) scale(${springs.scale.position})`;
 
-    function onMediaChange() {
-      if (pointerQuery.matches && !motionQuery.matches) activate();
-      else deactivate();
+      if (!Object.values(springs).every(isResting) || pendingPointer) requestFrame();
+    } catch (error) {
+      fail(error);
     }
+  };
 
-    pointerQuery.addEventListener("change", onMediaChange);
-    motionQuery.addEventListener("change", onMediaChange);
-    onMediaChange();
-  } catch (error) {
+  function requestFrame() {
+    if (!frameId && !stopped) frameId = requestAnimationFrame(renderFrame);
+  }
+
+  const onPointerMove = (event) => {
+    if (event.pointerType !== "mouse" && event.pointerType !== "pen" && event.pointerType !== "touch") return;
+    pendingPointer = {
+      x: event.clientX,
+      y: event.clientY,
+      time: event.timeStamp,
+      pointerType: event.pointerType,
+      excluded: Boolean(closest(event.target, EXCLUDED_SELECTOR)),
+    };
+    requestFrame();
+  };
+
+  const onPointerDown = (event) => {
+    if (event.pointerType === "touch") hideCursor();
+  };
+
+  const onPointerOver = (event) => {
+    if (event.pointerType === "touch") {
+      hideCursor();
+      return;
+    }
+    if (closest(event.target, EXCLUDED_SELECTOR)) {
+      hideCursor();
+      return;
+    }
+    hovering = Boolean(closest(event.target, INTERACTIVE_SELECTOR));
+    updateScaleTarget();
+  };
+
+  const onPointerOut = (event) => {
+    if (event.pointerType === "touch") return;
+    const nextTarget = safeTarget(event.relatedTarget);
+    if (nextTarget && closest(nextTarget, EXCLUDED_SELECTOR)) {
+      hideCursor();
+      return;
+    }
+    hovering = Boolean(nextTarget && closest(nextTarget, INTERACTIVE_SELECTOR));
+    updateScaleTarget();
+  };
+
+  const onPointerLeave = () => hideCursor();
+  const onVisibilityChange = () => {
+    if (document.hidden) hideCursor();
+  };
+
+  const removePointerListeners = () => {
+    window.removeEventListener("pointermove", guardedOnPointerMove);
+    window.removeEventListener("pointerdown", guardedOnPointerDown);
+    window.removeEventListener("pointerleave", guardedOnPointerLeave);
+    document.removeEventListener("pointerover", guardedOnPointerOver);
+    document.removeEventListener("pointerout", guardedOnPointerOut);
+    document.removeEventListener("visibilitychange", guardedOnVisibilityChange);
+  };
+
+  const createCursor = () => {
+    if (cursor) return;
+    cursor = document.createElement("div");
+    cursor.id = "smooth-cursor";
+    cursor.className = "sc-cursor";
+    cursor.setAttribute("aria-hidden", "true");
+    cursor.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="50" height="54" viewBox="0 0 50 54" fill="none"><path d="M42.6817 41.1495L27.5103 6.79925C26.7269 5.02557 24.2082 5.02558 23.3927 6.79925L7.59814 41.1495C6.75833 42.9759 8.52712 44.8902 10.4125 44.1954L24.3757 39.0496C24.8829 38.8627 25.4385 38.8627 25.9422 39.0496L39.8121 44.1954C41.6849 44.8902 43.4884 42.9759 42.6817 41.1495Z"/><path d="M43.7146 40.6933L28.5431 6.34306C27.3556 3.65428 23.5772 3.69516 22.3668 6.32755L6.57226 40.6778C5.3134 43.4156 7.97238 46.298 10.803 45.2549L24.7662 40.109C25.0221 40.0147 25.2999 40.0156 25.5494 40.1082L39.4193 45.254C42.2261 46.2953 44.9254 43.4347 43.7146 40.6933Z"/></svg>';
+    document.body.appendChild(cursor);
+  };
+
+  const disable = () => {
+    removePointerListeners();
+    hideCursor();
+    cursor?.remove();
+    cursor = null;
+    initialized = false;
+  };
+
+  const enable = () => {
+    if (initialized || stopped || !pointerQuery.matches || reducedMotionQuery.matches) return;
+    createCursor();
+    initialized = true;
+    window.addEventListener("pointermove", guardedOnPointerMove, { passive: true });
+    window.addEventListener("pointerdown", guardedOnPointerDown, { passive: true });
+    window.addEventListener("pointerleave", guardedOnPointerLeave);
+    document.addEventListener("pointerover", guardedOnPointerOver, { passive: true });
+    document.addEventListener("pointerout", guardedOnPointerOut, { passive: true });
+    document.addEventListener("visibilitychange", guardedOnVisibilityChange);
+  };
+
+  const syncAvailability = () => {
+    if (pointerQuery.matches && !reducedMotionQuery.matches) enable();
+    else disable();
+  };
+
+  const cleanup = () => {
+    stopped = true;
+    disable();
+    if (pointerQuery) pointerQuery.removeEventListener("change", onPreferenceChange);
+    if (reducedMotionQuery) reducedMotionQuery.removeEventListener("change", onPreferenceChange);
     document.documentElement.classList.remove("sc-active");
-    const cursor = document.getElementById("smooth-cursor");
-    if (cursor) cursor.remove();
-    console.warn("Smooth cursor could not be initialized; the native cursor remains available.", error);
+  };
+
+  function fail(error) {
+    if (stopped) return;
+    console.warn("Smooth cursor disabled after an error; the native cursor has been restored.", error);
+    cleanup();
+  }
+
+  const onPreferenceChange = guard(syncAvailability);
+  const guardedOnPointerMove = guard(onPointerMove);
+  const guardedOnPointerDown = guard(onPointerDown);
+  const guardedOnPointerLeave = guard(onPointerLeave);
+  const guardedOnPointerOver = guard(onPointerOver);
+  const guardedOnPointerOut = guard(onPointerOut);
+  const guardedOnVisibilityChange = guard(onVisibilityChange);
+
+  try {
+    pointerQuery = window.matchMedia(POINTER_QUERY);
+    reducedMotionQuery = window.matchMedia(REDUCED_MOTION_QUERY);
+    pointerQuery.addEventListener("change", onPreferenceChange);
+    reducedMotionQuery.addEventListener("change", onPreferenceChange);
+    syncAvailability();
+  } catch (error) {
+    fail(error);
   }
 })();
