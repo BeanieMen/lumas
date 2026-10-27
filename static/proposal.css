@@ -27,5 +27,13 @@ h1 {
     0 0 12px rgba(255, 255, 255, 0.3),
     0 0 22px rgba(255, 255, 255, 0.18);
     }
+.hover {
+    text-shadow: none;
+    transform: scale(1);
+    transition: text-shadow 0.3s ease, transform 0.3s ease;
+}
 
-
+.hover:hover {
+    text-shadow: 0 0 7px rgba(255, 255, 255, 0.3);
+    transform: scale(1.1);
+}
