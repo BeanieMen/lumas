@@ -32,18 +32,22 @@ async fn proposal() -> Html<String> {
 
 
 async fn styles() -> impl IntoResponse {
-    let css_content = std::fs::read_to_string("templates/style.css").unwrap_or_default();
+    let css_content = std::fs::read_to_string("templates/app.css").unwrap_or_default();
 
     ([(header::CONTENT_TYPE, "text/css")], css_content)
 }
+async fn proposalcss() -> impl IntoResponse {
+    let css_content = std::fs::read_to_string("templates/proposal.css").unwrap_or_default();
 
+    ([(header::CONTENT_TYPE, "text/css")], css_content)
+}
 #[tokio::main]
 async fn main() {
     let app = Router::new()
         .route("/", get(home))
-        .route("/style.css", get(styles))
         .route("/proposal", get(proposal))
-        .route("/style.css", get(styles));
+        .route("/proposal.css", get(proposalcss))
+        .route("/app.css", get(styles));
     
     let address = "127.0.0.1:3000";
     let listener = tokio::net::TcpListener::bind(address)
