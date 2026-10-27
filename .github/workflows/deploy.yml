@@ -21,6 +21,7 @@ jobs:
       - name: Deploy on a1 and verify health
         env:
           DEPLOY_KEY: ${{ secrets.LUMAS_DEPLOY_SSH_KEY }}
+          DEPLOY_HOST: ${{ secrets.LUMAS_DEPLOY_HOST }}
           DEPLOY_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
@@ -29,10 +30,10 @@ jobs:
           hosts=$(mktemp)
           trap 'rm -f "$key" "$hosts"' EXIT
           printf '%s\n' "$DEPLOY_KEY" > "$key"
-          printf '%s\n' '140.238.160.248 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDT7oJA/vH8PIuoU/UuKfNhCBpLQ8MiCXpL5xkkgMNJ+' > "$hosts"
+          printf '%s\n' "$DEPLOY_HOST ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDT7oJA/vH8PIuoU/UuKfNhCBpLQ8MiCXpL5xkkgMNJ+" > "$hosts"
           # This key can only call the VPS deploy wrapper, not an interactive shell.
           # The wrapper shares the deployment lock and preserves build/health rollback.
           ssh -T -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes \
             -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$hosts" \
             -o ConnectTimeout=20 -o ServerAliveInterval=30 -o ServerAliveCountMax=10 \
-            ubuntu@140.238.160.248 "deploy $DEPLOY_SHA"
+            ubuntu@"$DEPLOY_HOST" "deploy $DEPLOY_SHA"
