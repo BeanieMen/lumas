@@ -1,20 +1,21 @@
 [package]
-name = "mvc_app"
+name = "ysws"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-axum = "0.8.9"
-minijinja = "3.0.4"
-tokio = { version = "1.54.1", features = ["macros", "rt-multi-thread", "net"] }
-tower-http = { version = "0.7.1", features = ["fs"] }
-
-[profile.dev]
-debug = false
+axum = { version = "0.8", default-features = false, features = ["http1", "tokio"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net"] }
+tower-http = { version = "0.6", default-features = false, features = ["fs"] }
+minijinja = { version = "2", features = ["loader"] }
+bytes = "1"
+flate2 = "1"
+brotli = "7"
+mimalloc = "0.1"
 
 [profile.release]
 opt-level = 3
-lto = true
+lto = "fat"
 codegen-units = 1
 panic = "abort"
 strip = true
