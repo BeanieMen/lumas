@@ -3,6 +3,11 @@
   --sc-stroke: #000;
 }
 
+html,
+body {
+  min-height: 100vh;
+}
+
 html.sc-active,
 html.sc-active * {
   cursor: none !important;
