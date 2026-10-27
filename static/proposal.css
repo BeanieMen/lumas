@@ -12,11 +12,6 @@ body::selection {
 
 @font-face {
     font-family: magic;
-    src: url("Beyond\ Wonderland.ttf");
-}
-
-@font-face {
-    font-family: magic;
     src: url("MagicSchoolOne.ttf");
 }
 
