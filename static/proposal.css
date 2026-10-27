@@ -1,3 +1,29 @@
 body{
     background-color: #111129;
+    color: white;
+    margin-left: 25vw;
+    margin-right: 25svw;
+    margin-top: 10vh;}
+
+body::selection {
+    background-color: white;
+    color: black;
 }
+
+@font-face {
+    font-family: magic;
+    src: url("Beyond\ Wonderland.ttf");
+}
+
+@font-face {
+    font-family: magic;
+    src: url("MagicSchoolOne.ttf");
+}
+
+h1 {
+    font-family: magic;
+    font-size: 10vh;
+    font-weight: 1;
+}
+
+
