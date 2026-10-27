@@ -5,6 +5,8 @@ use std::{
     sync::Arc,
 };
 
+#[cfg(debug_assertions)]
+use axum::response::Html;
 use axum::{
     Router,
     extract::State,
@@ -19,6 +21,7 @@ use tower_http::services::ServeDir;
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
+#[allow(dead_code)]
 struct Page {
     plain: Bytes,
     gzip: Bytes,
@@ -26,6 +29,7 @@ struct Page {
     etag: HeaderValue,
 }
 
+#[allow(dead_code)]
 impl Page {
     fn new(html: String) -> Self {
         let plain = Bytes::from(html);
@@ -50,6 +54,7 @@ impl Page {
 }
 
 // zero rendering zero allocation pick precomputed bytes and send.
+#[allow(dead_code)]
 async fn serve_page(State(page): State<Arc<Page>>, headers: HeaderMap) -> Response {
     if headers.get(header::IF_NONE_MATCH) == Some(&page.etag) {
         return (
@@ -90,10 +95,25 @@ async fn serve_page(State(page): State<Arc<Page>>, headers: HeaderMap) -> Respon
     res
 }
 
-fn build_routes() -> Router {
-    // One environment, built once.
+#[cfg(debug_assertions)]
+fn render_dev_template(file_name: &str) -> Html<String> {
     let mut env = minijinja::Environment::new();
     env.set_loader(minijinja::path_loader("templates"));
+    let html = env
+        .get_template(file_name)
+        .unwrap_or_else(|e| panic!("template {file_name}: {e}"))
+        .render(minijinja::context! {})
+        .unwrap_or_else(|e| panic!("render {file_name}: {e}"));
+    Html(html)
+}
+
+fn build_routes() -> Router {
+    #[cfg(not(debug_assertions))]
+    let env = {
+        let mut e = minijinja::Environment::new();
+        e.set_loader(minijinja::path_loader("templates"));
+        e
+    };
 
     let mut app = Router::new();
 
@@ -112,19 +132,33 @@ fn build_routes() -> Router {
         }
         let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else { continue };
 
-        // Render + compress ONCE, at startup. Template errors fail fast here.
-        let html = env
-            .get_template(file_name)
-            .unwrap_or_else(|e| panic!("template {file_name}: {e}"))
-            .render(minijinja::context! {})
-            .unwrap_or_else(|e| panic!("render {file_name}: {e}"));
-        let page = Arc::new(Page::new(html));
-
         let route = if stem == "index" { "/".to_string() } else { format!("/{stem}") };
-        app = app.route(&route, get(serve_page).with_state(page.clone()));
 
-        if stem != "index" {
-            app = app.route(&format!("{route}.html"), get(serve_page).with_state(page));
+        #[cfg(debug_assertions)]
+        {
+            let name: &'static str = Box::leak(file_name.to_string().into_boxed_str());
+            app = app.route(&route, get(move || async move { render_dev_template(name) }));
+
+            if stem != "index" {
+                app = app.route(&format!("{route}.html"), get(move || async move { render_dev_template(name) }));
+            }
+        }
+
+        #[cfg(not(debug_assertions))]
+        {
+            // Render + compress ONCE, at startup. Template errors fail fast here.
+            let html = env
+                .get_template(file_name)
+                .unwrap_or_else(|e| panic!("template {file_name}: {e}"))
+                .render(minijinja::context! {})
+                .unwrap_or_else(|e| panic!("render {file_name}: {e}"));
+            let page = Arc::new(Page::new(html));
+
+            app = app.route(&route, get(serve_page).with_state(page.clone()));
+
+            if stem != "index" {
+                app = app.route(&format!("{route}.html"), get(serve_page).with_state(page));
+            }
         }
     }
 
