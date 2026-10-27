@@ -37,6 +37,20 @@ async fn home() -> Html<String> {
     )
 }
 
+async fn proposal() -> Html<String> {
+    let model = Model::get();
+
+    render_template(
+        "proposal.html",
+        minijinja::context! {
+            title => model.title,
+            heading => model.heading,
+            message => model.message,
+        },
+    )
+}
+
+
 async fn styles() -> impl IntoResponse {
     let css_content = std::fs::read_to_string("templates/style.css")
         .unwrap_or_default();
@@ -65,7 +79,8 @@ async fn main() {
     let app = Router::new()
         .route("/", get(home))
         .route("/style.css", get(styles))
-        .route("/dev/version", get(dev_version));
+        .route("/dev/version", get(dev_version))
+        .route("/proposal", get(proposal));
 
     let address = "127.0.0.1:3000";
     let listener = tokio::net::TcpListener::bind(address)
