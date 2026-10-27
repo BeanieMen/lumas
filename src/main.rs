@@ -13,12 +13,10 @@ fn is_dev() -> bool {
 async fn main() {
     use axum::serve::ListenerExt;
 
+    dotenvy::dotenv().ok();
+
     let dev = is_dev();
-    let app = if dev {
-        controller::dev::routes()
-    } else {
-        controller::prod::routes()
-    };
+    let app = controller::routes(dev);
 
     let address = "127.0.0.1:3000";
     let listener = tokio::net::TcpListener::bind(address)

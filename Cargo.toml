@@ -21,6 +21,7 @@ mime_guess = "2"
 bytes = "1"
 flate2 = "1"
 brotli = "7"
+dotenvy = "0.15.7"
 
 [profile.release]
 opt-level = 3
