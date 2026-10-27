@@ -1,4 +1,8 @@
-use axum::{response::Html, routing::get, Router};
+use axum::{
+    Router,
+    response::Html,
+    routing::get,
+};
 use tower_http::services::ServeDir;
 
 fn render_template(template_name: &str, context: minijinja::Value) -> Html<String> {
@@ -18,40 +22,62 @@ fn build_routes(mut app: Router) -> Router {
     if let Ok(entries) = std::fs::read_dir("templates") {
         for entry in entries.flatten() {
             let path = entry.path();
-            if path.extension().and_then(|s| s.to_str()) == Some("html") {
-                if let Some(file_name) = path.file_name().and_then(|s| s.to_str()) {
-                    if file_name == "base.html" || file_name.starts_with('_') {
-                        continue;
-                    }
 
-                    let stem = path.file_stem().unwrap().to_str().unwrap().to_string();
-                    let route = if stem == "index" {
-                        "/".to_string()
-                    } else {
-                        format!("/{stem}")
-                    };
+            if path.extension().and_then(|s| s.to_str()) != Some("html") {
+                continue;
+            }
 
-                    let template_name: &'static str =
-                        Box::leak(file_name.to_string().into_boxed_str());
-                    let route_path: &'static str = Box::leak(route.into_boxed_str());
+            let Some(file_name) = path.file_name().and_then(|s| s.to_str()) else {
+                continue;
+            };
 
-                    app = app.route(
-                        route_path,
-                        get(move || async move {
-                            render_template(template_name, minijinja::Value::UNDEFINED)
-                        }),
-                    );
+            if file_name == "base.html" || file_name.starts_with('_') {
+                continue;
+            }
+
+            let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else {
+                continue;
+            };
+
+            let template_name = file_name.to_string();
+            let route = if stem == "index" {
+                "/".to_string()
+            } else {
+                format!("/{stem}")
+            };
+
+            let handler = move || {
+                let template_name = template_name.clone();
+                async move {
+                    render_template(&template_name, minijinja::Value::UNDEFINED)
                 }
+            };
+
+            app = app.route(&route, get(handler));
+
+            if stem != "index" {
+                let html_route = format!("{route}.html");
+                let template_name = file_name.to_string();
+
+                app = app.route(
+                    &html_route,
+                    get(move || {
+                        let template_name = template_name.clone();
+                        async move {
+                            render_template(&template_name, minijinja::Value::UNDEFINED)
+                        }
+                    }),
+                );
             }
         }
     }
 
-    app
+    app.fallback_service(ServeDir::new("templates"))
 }
 
 #[tokio::main]
 async fn main() {
-    let app = build_routes(Router::new()).fallback_service(ServeDir::new("web"));
+    let app = build_routes(Router::new());
 
     let address = "127.0.0.1:3000";
     let listener = tokio::net::TcpListener::bind(address)
