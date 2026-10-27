@@ -4,14 +4,26 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-axum = { version = "0.8", default-features = false, features = ["http1", "tokio"] }
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "net"] }
-tower-http = { version = "0.6", default-features = false, features = ["fs"] }
-minijinja = { version = "2", features = ["loader"] }
-bytes = "1"
-flate2 = "1"
-brotli = "7"
 mimalloc = "0.1"
+minijinja = { version = "2", features = ["loader"] }
+
+axum = { version = "0.8", default-features = false, features = ["http1", "tokio"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "sync", "time"] }
+tower = { version = "0.5", default-features = false, features = ["util"] }
+tower-http = { version = "0.6", default-features = false, features = ["fs"] }
+notify = "8"
+tokio-stream = { version = "0.1", features = ["sync"] }
+
+io-uring = "0.7"
+httparse = "1"
+socket2 = { version = "0.5", features = ["all"] }
+libc = "0.2"
+ahash = "0.8"
+rayon = "1"
+percent-encoding = "2"
+mime_guess = "2"
+flate2 = { version = "1.1", default-features = false, features = ["zlib-rs"] }
+brotli = "7"
 
 [profile.release]
 opt-level = 3
