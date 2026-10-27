@@ -5,7 +5,7 @@ pub struct Model {
 }
 
 impl Model {
-    pub fn get() -> Self {
+    pub const fn get() -> Self {
         Self {
             title: "Axum App",
             heading: "Hello from Axum",

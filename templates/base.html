@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}{% endblock title %} - Lumas</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  {% block body %}
+  {% endblock body %}
+
+  <script>
+    let version = null;
+    setInterval(async () => {
+      try {
+        let res = await fetch("/dev/version");
+        let current = await res.text();
+        if (version && version !== current) {
+          location.reload();
+        }
+        version = current;
+      } catch (_) {}
+    }, 300);
+  </script>
+</body>
+</html>
