@@ -6,6 +6,7 @@
   <title>{% block title %}{% endblock title %} - Lumas</title>
   <link rel="stylesheet" href="https://unpkg.com/aos@2.3.4/dist/aos.css">
   <link rel="stylesheet" href="/app.css">
+  <link rel="stylesheet" href="/smooth-cursor.css">
   {% block css %}{% endblock css %}
 </head>
 <body>
@@ -14,5 +15,10 @@
   <script>
     AOS.init();
   </script>
+  <script type="module">
+    import { hoverAudio } from "/hover-audio.js";
+    hoverAudio.init();
+  </script>
+  <script src="/smooth-cursor.js?v=4" defer></script>
 </body>
 </html>
