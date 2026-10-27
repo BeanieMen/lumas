@@ -9,6 +9,9 @@ body::selection {
     background-color: white;
     color: black;
 }
+.yello {
+    color: gold;
+}
 
 @font-face {
     font-family: magic;
