@@ -11,4 +11,27 @@
 {% block body %}
     <h1>Proposal </h1>
     <p>hello felo kldjhbk am akjnasn asdklhasd asdlkb asdjl askld akcjbaj akbc;ia ca lakcbalk kab jkla iasbcia cja iabcah clabcla j lkha cjba jha ja klha ja jkzx </p>
+
+
+
+
+
+
+    <audio id="bg-music" loop preload="none">
+    <source src="https://cdn.hackclub.com/01a17cdd-72cb-7468-bc0e-e258081f88db/Lumas%20Magic%20Loop%20-%20usesuno.com.mp3" type="audio/mpeg">
+</audio>
+
+<script>
+    const music = document.getElementById("bg-music");
+
+    document.addEventListener("click", async () => {
+        if (music.paused) {
+            try {
+                await music.play();
+            } catch (error) {
+                console.error("Music playback failed:", error);
+            }
+        }
+    }, { once: true });
+</script>
 {% endblock body %}
