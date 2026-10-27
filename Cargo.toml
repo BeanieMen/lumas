@@ -7,6 +7,7 @@ edition = "2024"
 axum = "0.8.9"
 minijinja = "3.0.4"
 tokio = { version = "1.54.1", features = ["macros", "rt-multi-thread", "net"] }
+tower-http = { version = "0.7.1", features = ["fs"] }
 
 [profile.dev]
 debug = false

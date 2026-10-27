@@ -1,9 +1,5 @@
-use axum::{
-    Router,
-    http::header,
-    response::{Html, IntoResponse},
-    routing::get,
-};
+use axum::{response::Html, routing::get, Router};
+use tower_http::services::ServeDir;
 
 fn render_template(template_name: &str, context: minijinja::Value) -> Html<String> {
     let mut env = minijinja::Environment::new();
@@ -18,33 +14,45 @@ fn render_template(template_name: &str, context: minijinja::Value) -> Html<Strin
     Html(rendered)
 }
 
-async fn home() -> Html<String> {
-    render_template("index.html", minijinja::Value::UNDEFINED)
-}
+fn build_routes(mut app: Router) -> Router {
+    if let Ok(entries) = std::fs::read_dir("templates") {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|s| s.to_str()) == Some("html") {
+                if let Some(file_name) = path.file_name().and_then(|s| s.to_str()) {
+                    if file_name == "base.html" || file_name.starts_with('_') {
+                        continue;
+                    }
 
-async fn proposal() -> Html<String> {
+                    let stem = path.file_stem().unwrap().to_str().unwrap().to_string();
+                    let route = if stem == "index" {
+                        "/".to_string()
+                    } else {
+                        format!("/{stem}")
+                    };
 
-    render_template(
-        "proposal.html",
-        minijinja::Value::UNDEFINED
-    )
-}
+                    let template_name: &'static str =
+                        Box::leak(file_name.to_string().into_boxed_str());
+                    let route_path: &'static str = Box::leak(route.into_boxed_str());
 
+                    app = app.route(
+                        route_path,
+                        get(move || async move {
+                            render_template(template_name, minijinja::Value::UNDEFINED)
+                        }),
+                    );
+                }
+            }
+        }
+    }
 
-async fn styles() -> impl IntoResponse {
-    let css_content = std::fs::read_to_string("templates/style.css").unwrap_or_default();
-
-    ([(header::CONTENT_TYPE, "text/css")], css_content)
+    app
 }
 
 #[tokio::main]
 async fn main() {
-    let app = Router::new()
-        .route("/", get(home))
-        .route("/style.css", get(styles))
-        .route("/proposal", get(proposal))
-        .route("/style.css", get(styles));
-    
+    let app = build_routes(Router::new()).fallback_service(ServeDir::new("web"));
+
     let address = "127.0.0.1:3000";
     let listener = tokio::net::TcpListener::bind(address)
         .await
