@@ -73,8 +73,8 @@
   let previousAngle = null;
 
   const springs = {
-    x: { position: 0, velocity: 0, target: 0, stiffness: 400, damping: 45, mass: 1 },
-    y: { position: 0, velocity: 0, target: 0, stiffness: 400, damping: 45, mass: 1 },
+    x: { position: 0, velocity: 0, target: 0, stiffness: 600, damping: 60, mass: 1},
+    y: { position: 0, velocity: 0, target: 0, stiffness: 600, damping: 60, mass: 1 },
     rotation: { position: 0, velocity: 0, target: 0, stiffness: 300, damping: 60, mass: 1 },
     scale: { position: 1, velocity: 0, target: 1, stiffness: 500, damping: 35, mass: 1 },
   };
