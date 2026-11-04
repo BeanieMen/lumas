@@ -114,3 +114,13 @@ h1 {
         width: calc(100vw - 2rem);
     }
 }
+
+
+.c {
+    display: flex;
+    justify-content: center;
+}
+
+.s {
+    font-size:larger;
+}
