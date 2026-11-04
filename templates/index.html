@@ -11,7 +11,7 @@
         {% if user %}
             <span style="margin-left: 1rem;">Welcome, {{ user.first_name }}!</span>
             <a href="/auth/logout" style="margin-left: 0.5rem;">Sign out</a>
-        {% else %}
+        {% elif auth_enabled %}
             <a href="/auth/hackclub/login" style="margin-left: 1rem;">Sign in with Hack Club</a>
         {% endif %}
     </nav>

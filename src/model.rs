@@ -111,7 +111,7 @@ fn walk_static(dir: &Path, base: &Path, pages: &mut HashMap<String, Asset>) {
 }
 
 impl Site {
-    pub fn load() -> Self {
+    pub fn load(auth_enabled: bool) -> Self {
         let mut pages = HashMap::new();
 
         walk_static(Path::new("static"), Path::new("static"), &mut pages);
@@ -132,7 +132,7 @@ impl Site {
                     continue;
                 };
 
-                if let Ok(html) = crate::view::render(name, false, None) {
+                if let Ok(html) = crate::view::render(name, false, None, auth_enabled) {
                     let asset = Asset::new(html.into_bytes(), "text/html; charset=utf-8", true);
                     if stem == "index" {
                         pages.insert("/".into(), asset.clone());

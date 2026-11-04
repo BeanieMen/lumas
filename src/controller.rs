@@ -311,7 +311,7 @@ async fn handler(State(state): State<Arc<AppState>>, req: Request) -> Response {
         let template_file = format!("{stem}.html");
 
         if Path::new("templates").join(&template_file).is_file() {
-            match crate::view::render(&template_file, true, user.as_ref()) {
+            match crate::view::render(&template_file, true, user.as_ref(), state.auth.config.is_configured()) {
                 Ok(html) => (
                     StatusCode::OK,
                     [
@@ -350,7 +350,7 @@ async fn handler(State(state): State<Arc<AppState>>, req: Request) -> Response {
         let template_file = format!("{stem}.html");
 
         if user.is_some() && Path::new("templates").join(&template_file).is_file() {
-            match crate::view::render(&template_file, false, user.as_ref()) {
+            match crate::view::render(&template_file, false, user.as_ref(), state.auth.config.is_configured()) {
                 Ok(html) => (
                     StatusCode::OK,
                     [
@@ -390,7 +390,7 @@ pub fn routes(is_dev: bool, auth: Arc<AuthManager>, db: Db) -> Router {
 
     let state = Arc::new(AppState {
         is_dev,
-        site: Site::load(),
+        site: Site::load(auth.config.is_configured()),
         disk: ServeDir::new("static"),
         tx,
         _watcher: watcher,
