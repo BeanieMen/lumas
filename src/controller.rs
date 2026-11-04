@@ -64,6 +64,14 @@ async fn livereload(
     Sse::new(stream).keep_alive(KeepAlive::default())
 }
 
+fn html_escape(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&#39;")
+}
+
 #[derive(Deserialize)]
 struct LoginQuery {
     email: Option<String>,
@@ -112,7 +120,7 @@ async fn hackclub_callback(
             [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
             format!(
                 "<h2>Hack Club sign-in failed</h2><p>{}</p><p><a href=\"/\">Return home</a></p>",
-                desc
+                html_escape(&desc)
             ),
         )
             .into_response();
@@ -146,7 +154,7 @@ async fn hackclub_callback(
                 [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
                 format!(
                     "<h2>Failed to verify Hack Club identity</h2><p>{}</p><p><a href=\"/auth/hackclub/login\">Try again</a></p>",
-                    err
+                    html_escape(&err)
                 ),
             )
                 .into_response();

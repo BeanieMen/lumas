@@ -119,7 +119,7 @@ impl AuthManager {
             urlencoding(state),
         );
         if let Some(e) = email {
-            url.push_str("&login_hint=");
+            url.push_str("&email=");
             url.push_str(&urlencoding(e));
         }
         url
@@ -246,7 +246,7 @@ mod tests {
             url.contains("redirect_uri=http%3A%2F%2Flocalhost%3A3000%2Fauth%2Fhackclub%2Fcallback")
         );
         assert!(url.contains("state=test_state"));
-        assert!(url.contains("login_hint=user%40example.com"));
+        assert!(url.contains("email=user%40example.com"));
     }
 
     #[tokio::test]
