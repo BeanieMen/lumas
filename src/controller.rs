@@ -1,21 +1,26 @@
 use axum::{
     Router,
     body::Body,
-    extract::{Request, State},
+    extract::{Query, Request, State},
     http::{HeaderMap, HeaderValue, Method, StatusCode, header},
     response::{
-        IntoResponse, Response,
+        IntoResponse, Redirect, Response,
         sse::{Event, KeepAlive, Sse},
     },
     routing::get,
 };
+use serde::Deserialize;
 use std::{convert::Infallible, path::Path, sync::Arc};
 use tokio::sync::broadcast;
 use tokio_stream::{Stream, StreamExt, wrappers::BroadcastStream};
 use tower::ServiceExt;
 use tower_http::services::ServeDir;
 
-use crate::model::{Asset, Site};
+use crate::{
+    auth::AuthManager,
+    db::{Db, User},
+    model::{Asset, Site},
+};
 
 pub struct AppState {
     pub is_dev: bool,
@@ -23,6 +28,8 @@ pub struct AppState {
     pub disk: ServeDir,
     pub tx: Option<broadcast::Sender<()>>,
     pub _watcher: Option<notify::RecommendedWatcher>,
+    pub auth: Arc<AuthManager>,
+    pub db: Db,
 }
 
 fn spawn_watcher(tx: broadcast::Sender<()>) -> Option<notify::RecommendedWatcher> {
@@ -55,6 +62,179 @@ async fn livereload(
         .subscribe();
     let stream = BroadcastStream::new(rx).map(|_| Ok(Event::default().event("reload").data("")));
     Sse::new(stream).keep_alive(KeepAlive::default())
+}
+
+fn html_escape(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&#39;")
+}
+
+#[derive(Deserialize)]
+struct LoginQuery {
+    email: Option<String>,
+    next: Option<String>,
+}
+
+async fn hackclub_login(
+    State(state): State<Arc<AppState>>,
+    Query(query): Query<LoginQuery>,
+) -> Response {
+    if !state.auth.config.is_configured() {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            [(header::CONTENT_TYPE, "text/plain; charset=utf-8")],
+            "Hack Club OAuth is not configured. Please set HACKCLUB_CLIENT_ID and HACKCLUB_CLIENT_SECRET in .env",
+        )
+            .into_response();
+    }
+    let oauth_state = uuid::Uuid::new_v4().to_string();
+    state
+        .auth
+        .store_state(oauth_state.clone(), query.email.clone(), query.next)
+        .await;
+    let url = state
+        .auth
+        .authorize_url(&oauth_state, query.email.as_deref());
+    Redirect::to(&url).into_response()
+}
+
+#[derive(Deserialize)]
+struct CallbackQuery {
+    code: Option<String>,
+    state: Option<String>,
+    error: Option<String>,
+    error_description: Option<String>,
+}
+
+async fn hackclub_callback(
+    State(state): State<Arc<AppState>>,
+    Query(query): Query<CallbackQuery>,
+) -> Response {
+    if let Some(err) = query.error {
+        let desc = query.error_description.unwrap_or(err);
+        return (
+            StatusCode::UNAUTHORIZED,
+            [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
+            format!(
+                "<h2>Hack Club sign-in failed</h2><p>{}</p><p><a href=\"/\">Return home</a></p>",
+                html_escape(&desc)
+            ),
+        )
+            .into_response();
+    }
+
+    let Some(state_key) = query.state else {
+        return (StatusCode::BAD_REQUEST, "Missing OAuth state").into_response();
+    };
+
+    let oauth_state = match state.auth.take_state(&state_key).await {
+        Some(s) => s,
+        None => {
+            return (
+                StatusCode::UNAUTHORIZED,
+                [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
+                "<h2>Sign-in link expired or invalid</h2><p><a href=\"/auth/hackclub/login\">Try signing in again</a></p>",
+            )
+                .into_response();
+        }
+    };
+
+    let Some(code) = query.code else {
+        return (StatusCode::BAD_REQUEST, "Missing authorization code").into_response();
+    };
+
+    let identity = match state.auth.exchange_code(&code).await {
+        Ok(id) => id,
+        Err(err) => {
+            return (
+                StatusCode::UNAUTHORIZED,
+                [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
+                format!(
+                    "<h2>Failed to verify Hack Club identity</h2><p>{}</p><p><a href=\"/auth/hackclub/login\">Try again</a></p>",
+                    html_escape(&err)
+                ),
+            )
+                .into_response();
+        }
+    };
+
+    let user = match state.db.upsert_hackclub_user(&identity).await {
+        Ok(u) => u,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Database error saving user: {e}"),
+            )
+                .into_response();
+        }
+    };
+
+    let (token, hash) = AuthManager::generate_session_token();
+    if let Err(e) = state.db.create_session(&user.id, &hash).await {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Database error creating session: {e}"),
+        )
+            .into_response();
+    }
+
+    let redirect_target = oauth_state
+        .next
+        .filter(|n| n.starts_with('/') && !n.starts_with("//"))
+        .unwrap_or_else(|| "/".into());
+
+    let cookie_val = state.auth.session_cookie(&token);
+    let mut res = Redirect::to(&redirect_target).into_response();
+    if let Ok(hv) = HeaderValue::from_str(&cookie_val) {
+        res.headers_mut().insert(header::SET_COOKIE, hv);
+    }
+    res
+}
+
+async fn logout(State(state): State<Arc<AppState>>, headers: HeaderMap) -> Response {
+    if let Some(cookie) = headers.get(header::COOKIE).and_then(|v| v.to_str().ok()) {
+        if let Some(token) = cookie
+            .split(';')
+            .map(str::trim)
+            .find_map(|c| c.strip_prefix("session="))
+            .filter(|t| t.len() == 43)
+        {
+            let hash = crate::auth::hash_token(token);
+            let _ = state.db.delete_session(&hash).await;
+        }
+    }
+    let clear_cookie = state.auth.clear_session_cookie();
+    let mut res = Redirect::to("/").into_response();
+    if let Ok(hv) = HeaderValue::from_str(&clear_cookie) {
+        res.headers_mut().insert(header::SET_COOKIE, hv);
+    }
+    res
+}
+
+async fn current_user_me(State(state): State<Arc<AppState>>, headers: HeaderMap) -> Response {
+    match get_session_user(&state, &headers).await {
+        Some(user) => axum::Json(user).into_response(),
+        None => (
+            StatusCode::UNAUTHORIZED,
+            [(header::CONTENT_TYPE, "application/json")],
+            r#"{"error":"unauthorized","message":"sign in with Hack Club first"}"#,
+        )
+            .into_response(),
+    }
+}
+
+async fn get_session_user(state: &AppState, headers: &HeaderMap) -> Option<User> {
+    let cookie = headers.get(header::COOKIE)?.to_str().ok()?;
+    let token = cookie
+        .split(';')
+        .map(str::trim)
+        .find_map(|c| c.strip_prefix("session="))
+        .filter(|t| t.len() == 43)?;
+    let hash = crate::auth::hash_token(token);
+    state.db.get_user_by_token_hash(&hash).await.ok().flatten()
 }
 
 fn respond(asset: &Asset, headers: &HeaderMap) -> Response {
@@ -120,6 +300,7 @@ async fn handler(State(state): State<Arc<AppState>>, req: Request) -> Response {
 
     let is_head = req.method() == Method::HEAD;
     let path = req.uri().path();
+    let user = get_session_user(&state, req.headers()).await;
 
     let mut res = if state.is_dev {
         let stem = path
@@ -130,7 +311,7 @@ async fn handler(State(state): State<Arc<AppState>>, req: Request) -> Response {
         let template_file = format!("{stem}.html");
 
         if Path::new("templates").join(&template_file).is_file() {
-            match crate::view::render(&template_file, true) {
+            match crate::view::render(&template_file, true, user.as_ref(), state.auth.config.is_configured()) {
                 Ok(html) => (
                     StatusCode::OK,
                     [
@@ -138,12 +319,17 @@ async fn handler(State(state): State<Arc<AppState>>, req: Request) -> Response {
                         (header::CACHE_CONTROL, "no-store"),
                     ],
                     html,
-                ).into_response(),
+                )
+                    .into_response(),
                 Err(err) => (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
-                    format!("<body style=\"font-family:monospace;padding:2rem\"><h2>Template error: {template_file}</h2><pre>{err}</pre>{}</body>", crate::view::SCRIPT),
-                ).into_response(),
+                    format!(
+                        "<body style=\"font-family:monospace;padding:2rem\"><h2>Template error: {template_file}</h2><pre>{err}</pre>{}</body>",
+                        crate::view::SCRIPT
+                    ),
+                )
+                    .into_response(),
             }
         } else {
             match state.disk.clone().oneshot(req).await {
@@ -156,12 +342,34 @@ async fn handler(State(state): State<Arc<AppState>>, req: Request) -> Response {
             }
         }
     } else {
-        match state.site.pages.get(path) {
-            Some(asset) => respond(asset, req.headers()),
-            None => match state.disk.clone().oneshot(req).await {
-                Ok(res) => res.into_response(),
-                Err(_) => StatusCode::NOT_FOUND.into_response(),
-            },
+        let stem = path
+            .trim_matches('/')
+            .strip_suffix(".html")
+            .unwrap_or(path.trim_matches('/'));
+        let stem = if stem.is_empty() { "index" } else { stem };
+        let template_file = format!("{stem}.html");
+
+        if user.is_some() && Path::new("templates").join(&template_file).is_file() {
+            match crate::view::render(&template_file, false, user.as_ref(), state.auth.config.is_configured()) {
+                Ok(html) => (
+                    StatusCode::OK,
+                    [
+                        (header::CONTENT_TYPE, "text/html; charset=utf-8"),
+                        (header::CACHE_CONTROL, "private, no-cache"),
+                    ],
+                    html,
+                )
+                    .into_response(),
+                Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+            }
+        } else {
+            match state.site.pages.get(path) {
+                Some(asset) => respond(asset, req.headers()),
+                None => match state.disk.clone().oneshot(req).await {
+                    Ok(res) => res.into_response(),
+                    Err(_) => StatusCode::NOT_FOUND.into_response(),
+                },
+            }
         }
     };
 
@@ -171,7 +379,25 @@ async fn handler(State(state): State<Arc<AppState>>, req: Request) -> Response {
     res
 }
 
-pub fn routes(is_dev: bool) -> Router {
+async fn security_headers(req: Request, next: axum::middleware::Next) -> Response {
+    let mut res = next.run(req).await;
+    let h = res.headers_mut();
+    h.insert(
+        header::HeaderName::from_static("x-content-type-options"),
+        HeaderValue::from_static("nosniff"),
+    );
+    h.insert(
+        header::HeaderName::from_static("referrer-policy"),
+        HeaderValue::from_static("strict-origin-when-cross-origin"),
+    );
+    h.insert(
+        header::HeaderName::from_static("x-frame-options"),
+        HeaderValue::from_static("DENY"),
+    );
+    res
+}
+
+pub fn routes(is_dev: bool, auth: Arc<AuthManager>, db: Db) -> Router {
     let (tx, watcher) = if is_dev {
         let (tx, _) = broadcast::channel(16);
         let watcher = spawn_watcher(tx.clone());
@@ -182,15 +408,38 @@ pub fn routes(is_dev: bool) -> Router {
 
     let state = Arc::new(AppState {
         is_dev,
-        site: Site::load(),
+        site: Site::load(auth.config.is_configured()),
         disk: ServeDir::new("static"),
         tx,
         _watcher: watcher,
+        auth,
+        db,
     });
 
-    let mut router = Router::new();
+    let mut router = Router::new()
+        .route("/auth/hackclub/login", get(hackclub_login))
+        .route("/auth/hackclub/callback", get(hackclub_callback))
+        .route("/auth/logout", axum::routing::post(logout))
+        .route("/api/v1/me", get(current_user_me))
+        .route("/api/me", get(current_user_me));
+
     if is_dev {
         router = router.route("/__livereload", get(livereload));
     }
-    router.fallback(handler).with_state(state)
+
+    // Periodically purge expired sessions so the table does not grow unbounded.
+    let sweep_db = state.db.clone();
+    tokio::spawn(async move {
+        let mut tick = tokio::time::interval(std::time::Duration::from_secs(3600));
+        tick.tick().await; // first tick fires immediately: sweep at startup too
+        loop {
+            sweep_db.delete_expired_sessions().await.ok();
+            tick.tick().await;
+        }
+    });
+
+    router
+        .fallback(handler)
+        .with_state(state)
+        .layer(axum::middleware::from_fn(security_headers))
 }
