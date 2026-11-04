@@ -6,4 +6,18 @@
 
 {% block body %}
     <h1>sdsa lasjd</h1>
+    <nav aria-label="Example navigation">
+        <a href="/proposal" data-audio="1">Proposal</a>
+        {% if user %}
+            <span style="margin-left: 1rem;">Welcome, {{ user.first_name }}!</span>
+            <a href="/auth/logout" style="margin-left: 0.5rem;">Sign out</a>
+        {% else %}
+            <a href="/auth/hackclub/login" style="margin-left: 1rem;">Sign in with Hack Club</a>
+        {% endif %}
+    </nav>
+    <button type="button" data-audio="2">Test hover sound</button>
+    <article data-audio="3">
+        <h2>Exampleas audio card</h2>
+        <p>Hover this card to test clip 3.</p>
+    </article>
 {% endblock body %}
