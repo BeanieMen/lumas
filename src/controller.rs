@@ -379,6 +379,24 @@ async fn handler(State(state): State<Arc<AppState>>, req: Request) -> Response {
     res
 }
 
+async fn security_headers(req: Request, next: axum::middleware::Next) -> Response {
+    let mut res = next.run(req).await;
+    let h = res.headers_mut();
+    h.insert(
+        header::HeaderName::from_static("x-content-type-options"),
+        HeaderValue::from_static("nosniff"),
+    );
+    h.insert(
+        header::HeaderName::from_static("referrer-policy"),
+        HeaderValue::from_static("strict-origin-when-cross-origin"),
+    );
+    h.insert(
+        header::HeaderName::from_static("x-frame-options"),
+        HeaderValue::from_static("DENY"),
+    );
+    res
+}
+
 pub fn routes(is_dev: bool, auth: Arc<AuthManager>, db: Db) -> Router {
     let (tx, watcher) = if is_dev {
         let (tx, _) = broadcast::channel(16);
@@ -401,12 +419,27 @@ pub fn routes(is_dev: bool, auth: Arc<AuthManager>, db: Db) -> Router {
     let mut router = Router::new()
         .route("/auth/hackclub/login", get(hackclub_login))
         .route("/auth/hackclub/callback", get(hackclub_callback))
-        .route("/auth/logout", get(logout).post(logout))
+        .route("/auth/logout", axum::routing::post(logout))
         .route("/api/v1/me", get(current_user_me))
         .route("/api/me", get(current_user_me));
 
     if is_dev {
         router = router.route("/__livereload", get(livereload));
     }
-    router.fallback(handler).with_state(state)
+
+    // Periodically purge expired sessions so the table does not grow unbounded.
+    let sweep_db = state.db.clone();
+    tokio::spawn(async move {
+        let mut tick = tokio::time::interval(std::time::Duration::from_secs(3600));
+        tick.tick().await; // first tick fires immediately: sweep at startup too
+        loop {
+            sweep_db.delete_expired_sessions().await.ok();
+            tick.tick().await;
+        }
+    });
+
+    router
+        .fallback(handler)
+        .with_state(state)
+        .layer(axum::middleware::from_fn(security_headers))
 }

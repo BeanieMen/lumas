@@ -164,6 +164,13 @@ impl Db {
         .await
     }
 
+    pub async fn delete_expired_sessions(&self) -> Result<u64, sqlx::Error> {
+        let res = sqlx::query("DELETE FROM sessions WHERE expires_at <= datetime('now')")
+            .execute(&self.pool)
+            .await?;
+        Ok(res.rows_affected())
+    }
+
     pub async fn delete_session(&self, token_hash: &str) -> Result<(), sqlx::Error> {
         sqlx::query("DELETE FROM sessions WHERE token_hash = ?")
             .bind(token_hash)

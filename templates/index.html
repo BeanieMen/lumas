@@ -10,7 +10,9 @@
         <a href="/proposal" data-audio="1">Proposal</a>
         {% if user %}
             <span style="margin-left: 1rem;">Welcome, {{ user.first_name }}!</span>
-            <a href="/auth/logout" style="margin-left: 0.5rem;">Sign out</a>
+            <form method="post" action="/auth/logout" style="display: inline; margin-left: 0.5rem;">
+                <button type="submit" style="background: none; border: none; padding: 0; color: inherit; text-decoration: underline; cursor: pointer; font: inherit;">Sign out</button>
+            </form>
         {% elif auth_enabled %}
             <a href="/auth/hackclub/login" style="margin-left: 1rem;">Sign in with Hack Club</a>
         {% endif %}
