@@ -132,7 +132,7 @@ impl Site {
                     continue;
                 };
 
-                if let Ok(html) = crate::view::render(name, false) {
+                if let Ok(html) = crate::view::render(name, false, None) {
                     let asset = Asset::new(html.into_bytes(), "text/html; charset=utf-8", true);
                     if stem == "index" {
                         pages.insert("/".into(), asset.clone());
