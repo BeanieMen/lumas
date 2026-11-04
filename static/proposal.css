@@ -124,7 +124,7 @@ h1 {
 .s {
     font-size:larger;
 }
-.i {
+.h {
     margin: 0.2rem;
 }
 
@@ -139,6 +139,24 @@ h1 {
 
 
 .jitna {
+    display: block;
     width: 100%;
     height: 25vh;
+    transition: box-shadow 250ms ease;
+}
+
+.aj > .h:hover > .jitna {
+    box-shadow:
+        inset 0 0 0 2px rgba(255, 255, 255, 0.8),
+        0 0 18px rgba(255, 255, 255, 0.35);
+}
+
+.f {
+    width: 65%;
+
+}
+.i {
+    display: flex;
+    justify-content: center;
+    margin-top: 1rem;
 }
