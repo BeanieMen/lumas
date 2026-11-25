@@ -1,5 +1,16 @@
-header{
+.hero {
+    position: relative;
+    isolation: isolate;
+    min-height: 100vh;
+    min-height: 100svh;
+    overflow: hidden;
     background-color: #00001b;
+}
+
+header{
+    position: relative;
+    z-index: 1;
+    background-color: transparent;
     height: 6rem;
     display: grid;
     grid-template-columns: 1fr auto 1fr;
@@ -8,12 +19,94 @@ header{
     border-bottom:0.5px solid #d3dade;
 }
 
+.butterfly {
+    position: absolute;
+    z-index: 0;
+    width: 1.5rem;
+    color: white;
+    pointer-events: none;
+    will-change: translate;
+}
+
+.butterfly-flight {
+    display: block;
+    animation: butterfly-flight 16s ease-in-out infinite;
+}
+
+.butterfly-flight svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    fill: currentColor;
+    overflow: visible;
+}
+
+.butterfly-wing {
+    transform-box: fill-box;
+    animation: butterfly-flap 450ms ease-in-out infinite alternate;
+}
+
+.butterfly-wing-left {
+    transform-origin: right center;
+}
+
+.butterfly-wing-right {
+    transform-origin: left center;
+}
+
+.butterfly-one {
+    top: 18%;
+    left: 24%;
+}
+
+.butterfly-one .butterfly-flight {
+    animation-duration: 17s;
+}
+
+.butterfly-two {
+    top: 58%;
+    left: 68%;
+    width: 1.2rem;
+}
+
+.butterfly-two .butterfly-flight {
+    animation-duration: 21s;
+    animation-delay: -8s;
+}
+
+.butterfly-three {
+    top: 82%;
+    left: 48%;
+    width: 1.35rem;
+}
+
+.butterfly-three .butterfly-flight {
+    animation-duration: 19s;
+    animation-delay: -13s;
+}
+
+@keyframes butterfly-flight {
+    0% { transform: translate(0, 0) rotate(135deg); }
+    20% { transform: translate(12vmin, 12vmin) rotate(207deg); }
+    43% { transform: translate(5vmin, 26vmin) rotate(298deg); }
+    68% { transform: translate(-10vmin, 18vmin) rotate(367deg); }
+    84% { transform: translate(-7vmin, -5vmin) rotate(486deg); }
+    100% { transform: translate(0, 0) rotate(495deg); }
+}
+
+@keyframes butterfly-flap {
+    from { scale: 1 1; }
+    to { scale: 0.25 1; }
+}
+
 html,body {
     margin: 0;
     background-color: #000;
 }
 
 .nav {
+    position: relative;
+    z-index: 1;
     height: 3rem;
     background-color: #00001b;
 }
@@ -61,7 +154,9 @@ html,body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .orpheus-flag {
+    .orpheus-flag,
+    .butterfly,
+    .butterfly-wing {
         animation: none;
     }
 }
