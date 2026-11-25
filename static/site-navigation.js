@@ -2,6 +2,21 @@
   const content = document.getElementById("page-content");
   if (!content) return;
 
+  const updateStylesheet = (currentStyles, nextStyles, baseUrl) => {
+    if (!currentStyles || !nextStyles) {
+      return Promise.resolve(currentStyles === nextStyles);
+    }
+
+    const nextHref = new URL(nextStyles.getAttribute("href"), baseUrl).href;
+    if (currentStyles.href === nextHref) return Promise.resolve(true);
+
+    return new Promise((resolve) => {
+      currentStyles.addEventListener("load", () => resolve(true), { once: true });
+      currentStyles.addEventListener("error", () => resolve(false), { once: true });
+      currentStyles.href = nextHref;
+    });
+  };
+
   const loadPage = async (url, addHistoryEntry) => {
     let response;
     try {
@@ -31,10 +46,14 @@
 
     const currentStyles = document.getElementById("page-styles");
     const nextStyles = page.getElementById("page-styles");
-    if (currentStyles && nextStyles) {
-      currentStyles.href = nextStyles.href;
-    } else if (currentStyles || nextStyles) {
+    if (Boolean(currentStyles) !== Boolean(nextStyles)) {
       console.error("Page navigation response has inconsistent page styles; loading the destination normally.");
+      window.location.assign(url);
+      return;
+    }
+
+    if (!await updateStylesheet(currentStyles, nextStyles, url)) {
+      console.error("Page stylesheet failed to load; loading the destination normally.");
       window.location.assign(url);
       return;
     }
@@ -43,7 +62,13 @@
     document.title = page.title;
     if (addHistoryEntry) history.pushState({}, "", url);
     window.scrollTo(0, 0);
-    window.AOS?.refreshHard();
+    if (window.AOS) {
+      window.AOS.refreshHard();
+      window.AOS.refresh();
+      requestAnimationFrame(() => {
+        window.dispatchEvent(new Event("scroll"));
+      });
+    }
   };
 
   document.addEventListener("click", (event) => {
