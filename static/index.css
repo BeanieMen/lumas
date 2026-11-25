@@ -1,0 +1,114 @@
+header{
+    background-color: #00001b;
+    height: 6rem;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    padding: 0 1.25rem;
+    border-bottom:0.5px solid #d3dade;
+}
+
+html,body {
+    margin: 0;
+    background-color: #000;
+}
+
+.nav {
+    height: 3rem;
+    background-color: #00001b;
+}
+
+.site-logo {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.site-logo img {
+    display: block;
+    width: auto;
+    height: 5.5rem;
+}
+
+.orpheus-flag {
+    width: clamp(5rem, 12vw, 8.75rem);
+    align-self: start;
+    justify-self: end;
+    animation: flag-spin-in 1.8s cubic-bezier(0.2, 0.75, 0.3, 1) 1.5s both;
+}
+
+.orpheus-flag img {
+    display: block;
+    width: 100%;
+    height: auto;
+    transform-origin: center;
+    transition: transform 300ms ease;
+}
+
+.orpheus-flag:hover img {
+    transform: scale(1.1) rotate(5deg);
+}
+
+@keyframes flag-spin-in {
+    from {
+        transform: translateY(-250%) rotate(-90deg);
+    }
+
+    to {
+        transform: translateY(0) rotate(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .orpheus-flag {
+        animation: none;
+    }
+}
+
+.yello {
+    color: gold;
+}
+
+.hover {
+    text-shadow: none;
+    transform: scale(1.1);
+    transition: text-shadow 0.3s ease, transform 0.3s ease;
+}
+
+.hover:hover {
+    text-shadow: 0 0 7px rgba(255, 255, 255, 0.3);
+    transform: scale(1.1);
+}
+
+@font-face {
+    font-family: magic;
+    src: url("MagicSchoolOne.ttf");
+}
+
+.social {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.social a {
+    display: inline-flex;
+    color: #E5E5FF;
+    transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.social a:hover,
+.social a:focus-visible {
+    color: white;
+    transform: scale(1.1);
+}
+
+.social svg {
+    width: 2rem;
+    height: 2rem;
+}
+
+.width {
+    width: 20vw;
+}
