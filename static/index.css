@@ -100,7 +100,7 @@ html,body {
 
 .social a:hover,
 .social a:focus-visible {
-    color: white;
+    color: #ec6044;
     transform: scale(1.1);
 }
 

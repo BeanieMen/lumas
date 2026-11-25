@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block css %}
-<link rel="stylesheet" href="/proposal.css">
+<link id="page-styles" rel="stylesheet" href="/proposal.css">
 {% endblock css %}
 
 {% block title %}
@@ -9,7 +9,7 @@
 {% endblock title %}
 
 {% block body %}
-    <h1 class="yello hover" data-aos="fade" data-audio="1" data-aos-delay="1000" data-aos-duration="400" >Proposal</h1>
+    <h1 class="yello hover" data-aos="fade" data-audio="1" data-aos-delay="1000" data-aos-duration="400" ><img src="/proposal-logo.png" alt="Proposal" style="display: block; width: 100%; height: auto;"></h1>
     <p class="hover" data-aos="fade" data-aos-delay="1300" data-aos-duration="400" >Dear donor,</p>
     <p class="hover" data-aos="fade" data-aos-delay="1500" data-aos-duration="400" >In a world burdened by conformity and unthinking rules, there are a select few who dare to defy expectations, challenge the status quo, and venture into the unknown. The hackers, are the ones with the talent, vision, and courage to create something better, and we need them more than ever.</p>
     <p class="hover" data-aos="fade" data-aos-delay="1700" data-aos-duration="400" >For too long, hackers have been misunderstood and underappreciated, their potential undervalued. It's time to change that, to acknowledge and celebrate the unique gifts that hackers bring to the world. You as doners can be the lifeblood of our best futures.</p>
@@ -117,36 +117,4 @@
         <time class="proposal-tweet-card__time" datetime="2020-05-21T01:10:36Z">6:40 AM · May 21, 2020</time>
     </a>
 
-    <audio id="bg-music" loop preload="none">
-    <source src="https://cdn.hackclub.com/01a17cdd-72cb-7468-bc0e-e258081f88db/Lumas%20Magic%20Loop%20-%20usesuno.com.mp3" type="audio/mpeg">
-</audio>
-
-<script>
-    const music = document.getElementById("bg-music");
-    const targetVolume = 0.15;
-    const fadeDuration = 5000;
-    music.volume = 0;
-
-    document.addEventListener("click", async () => {
-        if (music.paused) {
-            try {
-                await music.play();
-                const fadeStartedAt = performance.now();
-
-                const fadeIn = (now) => {
-                    const progress = Math.min((now - fadeStartedAt) / fadeDuration, 1);
-                    music.volume = targetVolume * progress;
-
-                    if (progress < 1) {
-                        requestAnimationFrame(fadeIn);
-                    }
-                };
-
-                requestAnimationFrame(fadeIn);
-            } catch (error) {
-                console.error("Music playback failed:", error);
-            }
-        }
-    }, { once: true });
-</script>
 {% endblock body %}

@@ -11,7 +11,91 @@
   {% block css %}{% endblock css %}
 </head>
 <body>
-  {% block body %}{% endblock body %}
+  <main id="page-content">
+    {% block body %}{% endblock body %}
+  </main>
+  <audio id="bg-music" loop preload="metadata">
+    <source src="https://cdn.hackclub.com/01a17cdd-72cb-7468-bc0e-e258081f88db/Lumas%20Magic%20Loop%20-%20usesuno.com.mp3" type="audio/mpeg">
+  </audio>
+  <script>
+    const music = document.getElementById("bg-music");
+    const musicStartedKey = "lumas-music-started";
+    const musicPositionKey = "lumas-music-position";
+    const targetVolume = 0.15;
+    let savedPosition = 0;
+    music.volume = 0;
+
+    try {
+      savedPosition = Number(sessionStorage.getItem(musicPositionKey)) || 0;
+      music.volume = sessionStorage.getItem(musicStartedKey) === "true" ? targetVolume : 0;
+    } catch (error) {
+      console.warn("Background music state could not be restored.", error);
+    }
+
+    const restoreAndPlay = async () => {
+      if (Number.isFinite(music.duration) && music.duration > 0) {
+        music.currentTime = Math.min(savedPosition, music.duration - 0.1);
+      }
+
+      try {
+        await music.play();
+        try {
+          sessionStorage.setItem(musicStartedKey, "true");
+        } catch (error) {
+          console.warn("Background music state could not be saved.", error);
+        }
+      } catch (error) {
+        if (error.name !== "NotAllowedError") {
+          console.error("Music playback failed:", error);
+        }
+      }
+    };
+
+    if (music.volume > 0) {
+      if (music.readyState >= 1) {
+        void restoreAndPlay();
+      } else {
+        music.addEventListener("loadedmetadata", restoreAndPlay, { once: true });
+      }
+    }
+
+    music.addEventListener("timeupdate", () => {
+      if (music.paused) return;
+      try {
+        sessionStorage.setItem(musicPositionKey, String(music.currentTime));
+      } catch (error) {
+        console.warn("Background music position could not be saved.", error);
+      }
+    });
+
+    window.addEventListener("pagehide", () => {
+      if (music.paused) return;
+      try {
+        sessionStorage.setItem(musicStartedKey, "true");
+        sessionStorage.setItem(musicPositionKey, String(music.currentTime));
+      } catch (error) {
+        console.warn("Background music state could not be saved.", error);
+      }
+    });
+
+    document.addEventListener("click", async () => {
+      if (!music.paused) return;
+
+      try {
+        await music.play();
+        sessionStorage.setItem(musicStartedKey, "true");
+        const fadeStartedAt = performance.now();
+        const fadeIn = (now) => {
+          const progress = Math.min((now - fadeStartedAt) / 5000, 1);
+          music.volume = targetVolume * progress;
+          if (progress < 1) requestAnimationFrame(fadeIn);
+        };
+        requestAnimationFrame(fadeIn);
+      } catch (error) {
+        console.error("Music playback failed:", error);
+      }
+    });
+  </script>
   <script src="https://unpkg.com/aos@2.3.4/dist/aos.js"></script>
   <script>
     AOS.init();
@@ -20,6 +104,7 @@
     import { hoverAudio } from "/hover-audio.js";
     hoverAudio.init();
   </script>
+  <script src="/site-navigation.js" defer></script>
   <script src="/smooth-cursor.js?v=4" defer></script>
 </body>
 </html>

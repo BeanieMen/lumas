@@ -5,7 +5,7 @@
 {% endblock title %}
 
 {% block css %}
-    <link rel="stylesheet" href="/index.css">
+    <link id="page-styles" rel="stylesheet" href="/index.css">
 {% endblock css %}
 
 {% block body %}
@@ -49,44 +49,12 @@
         <a href="/proposal">Proposal</a>
         {% if user %}
             <span style="margin-left: 1rem;">Welcome, {{ user.first_name }}!</span>
-            <form method="post" action="/auth/logout" style="display: inline; margin-left: 0.5rem;">
-                <button type="submit" style="background: none; border: none; padding: 0; color: inherit; text-decoration: underline; cursor: pointer; font: inherit;">Sign out</button>
-            </form>
         {% elif auth_enabled %}
             <a href="/auth/hackclub/login" style="margin-left: 1rem;">Sign in with Hack Club</a>
         {% endif %}
+        <form method="post" action="/auth/logout" style="display: inline; margin-left: 0.5rem;">
+            <button type="submit" style="background: none; border: none; padding: 0; color: white; text-decoration: underline; cursor: pointer; font: inherit;">Log out</button>
+        </form>
     </nav>
 
-    <audio id="bg-music" loop preload="none">
-        <source src="https://cdn.hackclub.com/01a17cdd-72cb-7468-bc0e-e258081f88db/Lumas%20Magic%20Loop%20-%20usesuno.com.mp3" type="audio/mpeg">
-    </audio>
-
-    <script>
-        const music = document.getElementById("bg-music");
-        const targetVolume = 0.15;
-        const fadeDuration = 5000;
-        music.volume = 0;
-
-        document.addEventListener("click", async () => {
-            if (music.paused) {
-                try {
-                    await music.play();
-                    const fadeStartedAt = performance.now();
-
-                    const fadeIn = (now) => {
-                        const progress = Math.min((now - fadeStartedAt) / fadeDuration, 1);
-                        music.volume = targetVolume * progress;
-
-                        if (progress < 1) {
-                            requestAnimationFrame(fadeIn);
-                        }
-                    };
-
-                    requestAnimationFrame(fadeIn);
-                } catch (error) {
-                    console.error("Music playback failed:", error);
-                }
-            }
-        }, { once: true });
-    </script>
 {% endblock body %}
