@@ -109,6 +109,7 @@ html,body {
     z-index: 1;
     height: 3rem;
     background-color: #00001b;
+    border-bottom: 0.4px solid #d3dade71;
 }
 
 .site-logo {
