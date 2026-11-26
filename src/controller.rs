@@ -1,13 +1,13 @@
 use axum::{
     Router,
     body::Body,
-    extract::{Query, Request, State},
+    extract::{Form, Query, Request, State},
     http::{HeaderMap, HeaderValue, Method, StatusCode, header},
     response::{
         IntoResponse, Redirect, Response,
         sse::{Event, KeepAlive, Sse},
     },
-    routing::get,
+    routing::{get, post},
 };
 use serde::Deserialize;
 use std::{convert::Infallible, path::Path, sync::Arc};
@@ -81,6 +81,7 @@ struct LoginQuery {
 async fn hackclub_login(
     State(state): State<Arc<AppState>>,
     Query(query): Query<LoginQuery>,
+    headers: HeaderMap,
 ) -> Response {
     if !state.auth.config.is_configured() {
         return (
@@ -90,14 +91,90 @@ async fn hackclub_login(
         )
             .into_response();
     }
+    if !browser_has_login_cookie(&headers) {
+        return Redirect::to("/?collect-details=1").into_response();
+    }
+
     let oauth_state = uuid::Uuid::new_v4().to_string();
     state
         .auth
-        .store_state(oauth_state.clone(), query.email.clone(), query.next)
+        .store_state(
+            oauth_state.clone(),
+            query.email.clone(),
+            query.next,
+            None,
+            None,
+        )
         .await;
     let url = state
         .auth
         .authorize_url(&oauth_state, query.email.as_deref());
+    Redirect::to(&url).into_response()
+}
+
+#[derive(Deserialize)]
+struct SignupForm {
+    email: Option<String>,
+    name: Option<String>,
+    age: Option<i64>,
+}
+
+async fn hackclub_signup(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    Form(form): Form<SignupForm>,
+) -> Response {
+    let email = form
+        .email
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
+    let name = form
+        .name
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
+    let signup_details = match (name, form.age) {
+        (Some(name), Some(age)) if name.chars().count() <= 100 && (1..=18).contains(&age) => {
+            Some((name.to_owned(), age))
+        }
+        (None, None) => None,
+        _ => return (StatusCode::BAD_REQUEST, "Invalid signup details").into_response(),
+    };
+    if signup_details.is_none() && !browser_has_login_cookie(&headers) {
+        return (
+            StatusCode::BAD_REQUEST,
+            "Name and age are required for first-time sign-in",
+        )
+            .into_response();
+    }
+    if email.is_some_and(|email| {
+        email.len() > 254 || !email.contains('@') || email.chars().any(char::is_whitespace)
+    }) {
+        return (StatusCode::BAD_REQUEST, "Invalid signup details").into_response();
+    }
+
+    if !state.auth.config.is_configured() {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            [(header::CONTENT_TYPE, "text/plain; charset=utf-8")],
+            "Hack Club OAuth is not configured. Please set HACKCLUB_CLIENT_ID and HACKCLUB_CLIENT_SECRET in .env",
+        )
+            .into_response();
+    }
+
+    let oauth_state = uuid::Uuid::new_v4().to_string();
+    state
+        .auth
+        .store_state(
+            oauth_state.clone(),
+            email.map(str::to_owned),
+            None,
+            signup_details.as_ref().map(|(name, _)| name.clone()),
+            signup_details.map(|(_, age)| age),
+        )
+        .await;
+    let url = state.auth.authorize_url(&oauth_state, email);
     Redirect::to(&url).into_response()
 }
 
@@ -172,6 +249,20 @@ async fn hackclub_callback(
         }
     };
 
+    if let (Some(signup_name), Some(age)) = (oauth_state.signup_name.as_deref(), oauth_state.age) {
+        if let Err(e) = state
+            .db
+            .set_signup_details(&user.id, signup_name, age)
+            .await
+        {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Database error saving signup details: {e}"),
+            )
+                .into_response();
+        }
+    }
+
     let (token, hash) = AuthManager::generate_session_token();
     if let Err(e) = state.db.create_session(&user.id, &hash).await {
         return (
@@ -181,15 +272,51 @@ async fn hackclub_callback(
             .into_response();
     }
 
-    let redirect_target = oauth_state
-        .next
-        .filter(|n| n.starts_with('/') && !n.starts_with("//"))
-        .unwrap_or_else(|| "/".into());
+    let first_signup = oauth_state.signup_name.is_some() && oauth_state.age.is_some();
+    let show_welcome = if first_signup {
+        match state.db.mark_first_welcome_shown(&user.id).await {
+            Ok(shown) => shown,
+            Err(e) => {
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Database error tracking first welcome: {e}"),
+                )
+                    .into_response();
+            }
+        }
+    } else {
+        false
+    };
+    let mut redirect_target = if show_welcome {
+        "/welcome".into()
+    } else {
+        oauth_state
+            .next
+            .filter(|n| n.starts_with('/') && !n.starts_with("//"))
+            .unwrap_or_else(|| "/".into())
+    };
+    redirect_target.push(if redirect_target.contains('?') {
+        '&'
+    } else {
+        '?'
+    });
+    redirect_target.push_str("auth=success");
 
     let cookie_val = state.auth.session_cookie(&token);
     let mut res = Redirect::to(&redirect_target).into_response();
     if let Ok(hv) = HeaderValue::from_str(&cookie_val) {
         res.headers_mut().insert(header::SET_COOKIE, hv);
+    }
+    let browser_cookie = format!(
+        "lumas_browser_login=1; Path=/; Max-Age=31536000; HttpOnly; SameSite=Lax{}",
+        if state.auth.config.cookie_secure {
+            "; Secure"
+        } else {
+            ""
+        }
+    );
+    if let Ok(hv) = HeaderValue::from_str(&browser_cookie) {
+        res.headers_mut().append(header::SET_COOKIE, hv);
     }
     res
 }
@@ -235,6 +362,18 @@ async fn get_session_user(state: &AppState, headers: &HeaderMap) -> Option<User>
         .filter(|t| t.len() == 43)?;
     let hash = crate::auth::hash_token(token);
     state.db.get_user_by_token_hash(&hash).await.ok().flatten()
+}
+
+fn browser_has_login_cookie(headers: &HeaderMap) -> bool {
+    headers
+        .get(header::COOKIE)
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|cookies| {
+            cookies
+                .split(';')
+                .map(str::trim)
+                .any(|cookie| cookie == "lumas_browser_login=1")
+        })
 }
 
 fn respond(asset: &Asset, headers: &HeaderMap) -> Response {
@@ -350,7 +489,12 @@ async fn handler(State(state): State<Arc<AppState>>, req: Request) -> Response {
         let template_file = format!("{stem}.html");
 
         if user.is_some() && Path::new("templates").join(&template_file).is_file() {
-            match crate::view::render(&template_file, false, user.as_ref(), state.auth.config.is_configured()) {
+            match crate::view::render(
+                &template_file,
+                false,
+                user.as_ref(),
+                state.auth.config.is_configured(),
+            ) {
                 Ok(html) => (
                     StatusCode::OK,
                     [
@@ -418,6 +562,7 @@ pub fn routes(is_dev: bool, auth: Arc<AuthManager>, db: Db) -> Router {
 
     let mut router = Router::new()
         .route("/auth/hackclub/login", get(hackclub_login))
+        .route("/auth/hackclub/signup", post(hackclub_signup))
         .route("/auth/hackclub/callback", get(hackclub_callback))
         .route("/auth/logout", axum::routing::post(logout))
         .route("/api/v1/me", get(current_user_me))
@@ -442,4 +587,204 @@ pub fn routes(is_dev: bool, auth: Arc<AuthManager>, db: Db) -> Router {
         .fallback(handler)
         .with_state(state)
         .layer(axum::middleware::from_fn(security_headers))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::auth::HackClubConfig;
+
+    #[tokio::test]
+    async fn signup_redirect_keeps_details_in_server_side_oauth_state() {
+        let auth = Arc::new(AuthManager::new(HackClubConfig {
+            client_id: "client-id".into(),
+            client_secret: "client-secret".into(),
+            redirect_uri: "http://localhost/auth/hackclub/callback".into(),
+            cookie_secure: false,
+        }));
+        let db = Db::connect(":memory:")
+            .await
+            .expect("connect test database");
+        let app_state = Arc::new(AppState {
+            is_dev: false,
+            site: Site::load(true),
+            disk: ServeDir::new("static"),
+            tx: None,
+            _watcher: None,
+            auth: auth.clone(),
+            db,
+        });
+        let app = Router::new()
+            .route("/auth/hackclub/login", get(hackclub_login))
+            .route("/auth/hackclub/signup", post(hackclub_signup))
+            .with_state(app_state);
+
+        let first_login_request = Request::builder()
+            .uri("/auth/hackclub/login")
+            .body(Body::empty())
+            .expect("build first login request");
+        let first_login_response = app
+            .clone()
+            .oneshot(first_login_request)
+            .await
+            .expect("send first login request");
+        assert_eq!(first_login_response.status(), StatusCode::SEE_OTHER);
+        assert_eq!(
+            first_login_response
+                .headers()
+                .get(header::LOCATION)
+                .and_then(|value| value.to_str().ok()),
+            Some("/?collect-details=1")
+        );
+
+        let returning_login_request = Request::builder()
+            .uri("/auth/hackclub/login")
+            .header(header::COOKIE, "lumas_browser_login=1")
+            .body(Body::empty())
+            .expect("build returning login request");
+        let returning_login_response = app
+            .clone()
+            .oneshot(returning_login_request)
+            .await
+            .expect("send returning login request");
+        assert_eq!(returning_login_response.status(), StatusCode::SEE_OTHER);
+        assert!(
+            returning_login_response
+                .headers()
+                .get(header::LOCATION)
+                .and_then(|value| value.to_str().ok())
+                .is_some_and(
+                    |location| location.starts_with("https://auth.hackclub.com/oauth/authorize")
+                )
+        );
+
+        let invalid_request = Request::builder()
+            .method(Method::POST)
+            .uri("/auth/hackclub/signup")
+            .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+            .body(Body::from("email=ada%40example.com&name=Ada&age=19"))
+            .expect("build invalid signup request");
+        let invalid_response = app
+            .clone()
+            .oneshot(invalid_request)
+            .await
+            .expect("send invalid signup request");
+        assert_eq!(invalid_response.status(), StatusCode::BAD_REQUEST);
+
+        let returning_browser_request = Request::builder()
+            .method(Method::POST)
+            .uri("/auth/hackclub/signup")
+            .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+            .body(Body::empty())
+            .expect("build missing-cache signup request");
+        let returning_browser_response = app
+            .clone()
+            .oneshot(returning_browser_request)
+            .await
+            .expect("send missing-cache signup request");
+        assert_eq!(returning_browser_response.status(), StatusCode::BAD_REQUEST);
+
+        let returning_browser_request = Request::builder()
+            .method(Method::POST)
+            .uri("/auth/hackclub/signup")
+            .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+            .header(header::COOKIE, "lumas_browser_login=1")
+            .body(Body::empty())
+            .expect("build returning browser signup request");
+        let returning_browser_response = app
+            .clone()
+            .oneshot(returning_browser_request)
+            .await
+            .expect("send returning browser signup request");
+        assert!(returning_browser_response.status().is_redirection());
+        let returning_browser_url = returning_browser_response
+            .headers()
+            .get(header::LOCATION)
+            .expect("OAuth redirect location")
+            .to_str()
+            .expect("valid redirect location");
+        let returning_browser_state = returning_browser_url
+            .split("state=")
+            .nth(1)
+            .expect("OAuth state")
+            .split('&')
+            .next()
+            .expect("state value");
+        let returning_browser_oauth_state = auth
+            .take_state(returning_browser_state)
+            .await
+            .expect("server-side OAuth state");
+        assert_eq!(returning_browser_oauth_state.signup_name, None);
+        assert_eq!(returning_browser_oauth_state.age, None);
+
+        let first_browser_request = Request::builder()
+            .method(Method::POST)
+            .uri("/auth/hackclub/signup")
+            .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+            .body(Body::from("name=Browser%20Hacker&age=16"))
+            .expect("build first browser signup request");
+        let first_browser_response = app
+            .clone()
+            .oneshot(first_browser_request)
+            .await
+            .expect("send first browser signup request");
+        assert!(first_browser_response.status().is_redirection());
+        let first_browser_url = first_browser_response
+            .headers()
+            .get(header::LOCATION)
+            .expect("OAuth redirect location")
+            .to_str()
+            .expect("valid redirect location");
+        assert!(!first_browser_url.contains("email="));
+        let first_browser_state = first_browser_url
+            .split("state=")
+            .nth(1)
+            .expect("OAuth state")
+            .split('&')
+            .next()
+            .expect("state value");
+        let first_browser_oauth_state = auth
+            .take_state(first_browser_state)
+            .await
+            .expect("server-side OAuth state");
+        assert_eq!(
+            first_browser_oauth_state.signup_name.as_deref(),
+            Some("Browser Hacker")
+        );
+        assert_eq!(first_browser_oauth_state.age, Some(16));
+
+        let request = Request::builder()
+            .method(Method::POST)
+            .uri("/auth/hackclub/signup")
+            .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+            .body(Body::from(
+                "email=ada%40example.com&name=Ada%20Lovelace&age=16",
+            ))
+            .expect("build signup request");
+        let response = app.oneshot(request).await.expect("send signup request");
+        assert!(response.status().is_redirection());
+        let authorize_url = response
+            .headers()
+            .get(header::LOCATION)
+            .expect("OAuth redirect location")
+            .to_str()
+            .expect("valid redirect location");
+        assert!(authorize_url.contains("email=ada%40example.com"));
+        assert!(!authorize_url.contains("Lovelace"));
+        assert!(!authorize_url.contains("age=16"));
+
+        let state_key = authorize_url
+            .split("state=")
+            .nth(1)
+            .expect("OAuth state")
+            .split('&')
+            .next()
+            .expect("state value");
+        let oauth_state = auth
+            .take_state(state_key)
+            .await
+            .expect("server-side OAuth state");
+        assert_eq!(oauth_state.signup_name.as_deref(), Some("Ada Lovelace"));
+        assert_eq!(oauth_state.age, Some(16));
+    }
 }

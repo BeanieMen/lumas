@@ -23,3 +23,16 @@ pub fn render(
     }
     Ok(html)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn welcome_page_renders_for_static_site_generation() {
+        let html = render("welcome.html", false, None, true).expect("render welcome page");
+        assert!(html.contains("Dear Hacker,"));
+        assert_eq!(html.matches("data-welcome-screen").count(), 8);
+        assert!(html.contains("welcome.css"));
+    }
+}

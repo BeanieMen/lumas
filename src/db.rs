@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use sqlx::{SqlitePool, sqlite::SqlitePoolOptions};
+use sqlx::{Row, SqlitePool, sqlite::SqlitePoolOptions};
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct User {
@@ -8,6 +8,8 @@ pub struct User {
     pub email: String,
     pub first_name: String,
     pub last_name: String,
+    pub signup_name: Option<String>,
+    pub age: Option<i64>,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -38,12 +40,37 @@ impl Db {
                 email TEXT NOT NULL UNIQUE,
                 first_name TEXT NOT NULL,
                 last_name TEXT NOT NULL,
+                signup_name TEXT,
+                age INTEGER,
+                welcome_shown INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL DEFAULT (datetime('now')),
                 updated_at TEXT NOT NULL DEFAULT (datetime('now'))
             );",
         )
         .execute(&pool)
         .await?;
+
+        let columns = sqlx::query("PRAGMA table_info(users)")
+            .fetch_all(&pool)
+            .await?
+            .into_iter()
+            .map(|row| row.try_get::<String, _>("name"))
+            .collect::<Result<Vec<_>, _>>()?;
+        if !columns.iter().any(|column| column == "signup_name") {
+            sqlx::query("ALTER TABLE users ADD COLUMN signup_name TEXT")
+                .execute(&pool)
+                .await?;
+        }
+        if !columns.iter().any(|column| column == "age") {
+            sqlx::query("ALTER TABLE users ADD COLUMN age INTEGER")
+                .execute(&pool)
+                .await?;
+        }
+        if !columns.iter().any(|column| column == "welcome_shown") {
+            sqlx::query("ALTER TABLE users ADD COLUMN welcome_shown INTEGER NOT NULL DEFAULT 0")
+                .execute(&pool)
+                .await?;
+        }
 
         sqlx::query(
             "CREATE TABLE IF NOT EXISTS sessions (
@@ -66,7 +93,7 @@ impl Db {
 
     pub async fn get_user(&self, id: &str) -> Result<Option<User>, sqlx::Error> {
         sqlx::query_as::<_, User>(
-            "SELECT id, hca_id, email, first_name, last_name, created_at, updated_at
+            "SELECT id, hca_id, email, first_name, last_name, signup_name, age, created_at, updated_at
              FROM users WHERE id = ?",
         )
         .bind(id)
@@ -89,7 +116,7 @@ impl Db {
         let hca_id = identity.id.trim();
 
         let existing: Option<User> = sqlx::query_as::<_, User>(
-            "SELECT id, hca_id, email, first_name, last_name, created_at, updated_at
+            "SELECT id, hca_id, email, first_name, last_name, signup_name, age, created_at, updated_at
              FROM users
              WHERE hca_id = ? OR email = ?
              ORDER BY (hca_id = ?) DESC LIMIT 1",
@@ -135,6 +162,37 @@ impl Db {
         }
     }
 
+    pub async fn set_signup_details(
+        &self,
+        user_id: &str,
+        signup_name: &str,
+        age: i64,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            "UPDATE users
+             SET signup_name = ?, age = ?, updated_at = datetime('now')
+             WHERE id = ?",
+        )
+        .bind(signup_name)
+        .bind(age)
+        .bind(user_id)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn mark_first_welcome_shown(&self, user_id: &str) -> Result<bool, sqlx::Error> {
+        let result = sqlx::query(
+            "UPDATE users
+             SET welcome_shown = 1
+             WHERE id = ? AND welcome_shown = 0",
+        )
+        .bind(user_id)
+        .execute(&self.pool)
+        .await?;
+        Ok(result.rows_affected() == 1)
+    }
+
     pub async fn create_session(&self, user_id: &str, token_hash: &str) -> Result<(), sqlx::Error> {
         let id = uuid::Uuid::new_v4().to_string();
         sqlx::query(
@@ -154,7 +212,7 @@ impl Db {
         token_hash: &str,
     ) -> Result<Option<User>, sqlx::Error> {
         sqlx::query_as::<_, User>(
-            "SELECT u.id, u.hca_id, u.email, u.first_name, u.last_name, u.created_at, u.updated_at
+            "SELECT u.id, u.hca_id, u.email, u.first_name, u.last_name, u.signup_name, u.age, u.created_at, u.updated_at
              FROM sessions s
              JOIN users u ON s.user_id = u.id
              WHERE s.token_hash = ? AND s.expires_at > datetime('now')",
@@ -203,6 +261,32 @@ mod tests {
         assert_eq!(user.first_name, "Alice");
         assert_eq!(user.email, "alice@hackclub.com");
         assert_eq!(user.hca_id.as_deref(), Some("hc_12345"));
+        assert_eq!(user.signup_name, None);
+        assert_eq!(user.age, None);
+
+        db.set_signup_details(&user.id, "Alice Example", 16)
+            .await
+            .expect("save signup details");
+        let user_with_signup_details = db
+            .get_user(&user.id)
+            .await
+            .expect("get user with signup details")
+            .expect("user exists");
+        assert_eq!(
+            user_with_signup_details.signup_name.as_deref(),
+            Some("Alice Example")
+        );
+        assert_eq!(user_with_signup_details.age, Some(16));
+        assert!(
+            db.mark_first_welcome_shown(&user.id)
+                .await
+                .expect("mark first welcome")
+        );
+        assert!(
+            !db.mark_first_welcome_shown(&user.id)
+                .await
+                .expect("welcome is shown only once")
+        );
 
         // Upsert update
         let updated_identity = HackClubIdentity {

@@ -84,7 +84,7 @@
       <nav aria-label="Example navigation">
         <a href="/proposal">Proposal</a>
         {% if user %}
-            <span style="margin-left: 1rem;">Welcome, {{ user.first_name }}!</span>
+            <span style="margin-left: 1rem;">Welcome, {{ user.signup_name or user.first_name }}!</span>
         {% elif auth_enabled %}
             <a href="/auth/hackclub/login" style="margin-left: 1rem;">Sign in with Hack Club</a>
         {% endif %}
@@ -95,14 +95,41 @@
     </div>
     <div class="dign">
         {% if auth_enabled and not user %}
-        <form class="gh" action="/auth/hackclub/login" method="get">
+        <form class="gh" action="/" method="get">
             <input id="signup-email" type="email" name="email" placeholder="Enter your email..." autocomplete="email" required>
-            <button id="buts" type="submit">Start !</button>
+            <button id="buts" type="submit">Start!</button>
         </form>
         {% endif %}
     </div>
 
     </section>
+    {% if auth_enabled and not user %}
+    <div id="signup-flow" aria-hidden="true">
+        <form class="signup-step" data-signup-step="name" aria-labelledby="signup-name-question" hidden>
+            <h1 id="signup-name-question">What's your name?</h1>
+            <input id="signup-name" type="text" name="name" autocomplete="name" required maxlength="100" aria-label="Your name">
+            <button type="submit">Continue</button>
+        </form>
+        <form class="signup-step" data-signup-step="age" aria-labelledby="signup-age-question" hidden>
+            <h1 id="signup-age-question">How old are you?</h1>
+            <input id="signup-age" type="number" name="age" min="1" max="120" step="1" required aria-label="Your age">
+            <button type="submit">Continue</button>
+        </form>
+        <div class="signup-step" data-signup-step="ineligible" aria-live="polite" hidden>
+            <p>Hack Club is a charity focusing on teenagers. Why don't you visit our <a href="https://github.com/hackclub">GitHub</a> and fix some things :)</p>
+        </div>
+        <div class="signup-step" data-signup-step="welcome-back" aria-live="polite" hidden>
+            <p>Welcome back!</p>
+        </div>
+        <form class="signup-step" data-signup-step="verify" action="/auth/hackclub/signup" method="post" aria-labelledby="signup-verify-copy" hidden>
+            <input type="hidden" name="email">
+            <input type="hidden" name="name">
+            <input type="hidden" name="age">
+            <p id="signup-verify-copy">Last step — verify with Hack Club</p>
+            <button type="submit">Sign in with Hack Club</button>
+        </form>
+    </div>
+    {% endif %}
     <div class="split-section-divider" aria-hidden="true">
         <span class="split-divider-line"></span>
         <span class="split-divider-star split-divider-star-center"></span>

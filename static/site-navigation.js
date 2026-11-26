@@ -60,6 +60,7 @@
 
     content.replaceChildren(...nextContent.childNodes);
     document.title = page.title;
+    document.dispatchEvent(new Event("site:pagecontent-updated"));
     if (addHistoryEntry) history.pushState({}, "", url);
     window.scrollTo(0, 0);
     if (window.AOS) {

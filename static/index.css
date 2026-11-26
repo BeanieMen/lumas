@@ -697,3 +697,113 @@ html,body {
         transition: none;
     }
 }
+
+body.signup-flow-active {
+    overflow: hidden;
+}
+
+body.signup-flow-active #page-content > *:not(#signup-flow),
+body.signup-flow-active > footer {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 350ms ease, visibility 0s linear 350ms;
+}
+
+#signup-flow {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: grid;
+    place-items: center;
+    box-sizing: border-box;
+    padding: 1.5rem;
+    background: #000;
+    color: #fff;
+    font-family: Arial, sans-serif;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 350ms ease, visibility 350ms ease;
+}
+
+body.signup-flow-active #signup-flow {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+.signup-step {
+    grid-area: 1 / 1;
+    display: grid;
+    justify-items: center;
+    gap: 1.25rem;
+    width: min(100%, 24rem);
+    margin: 0;
+    text-align: center;
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 175ms ease, transform 175ms ease;
+}
+
+.signup-step[hidden] {
+    display: none;
+}
+
+.signup-step.is-entering,
+.signup-step.is-leaving {
+    opacity: 0;
+    transform: translateY(8px);
+}
+
+.signup-step h1,
+.signup-step p {
+    margin: 0;
+    color: #fff;
+    font-family: Arial, sans-serif;
+    font-size: 1.5rem;
+    font-weight: 400;
+}
+
+.signup-step a {
+    color: #fff;
+    text-underline-offset: 0.2em;
+}
+
+.signup-step input,
+.signup-step button {
+    box-sizing: border-box;
+    min-height: 2.75rem;
+    width: 100%;
+    border: 1px solid #fff;
+    border-radius: 0.35rem;
+    background: #000;
+    color: #fff;
+    font: inherit;
+}
+
+.signup-step input {
+    padding: 0.65rem 0.75rem;
+}
+
+.signup-step button {
+    padding: 0.65rem 0.75rem;
+    cursor: pointer;
+}
+
+.signup-step input:focus-visible,
+.signup-step button:focus-visible,
+.signup-step a:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #signup-flow,
+    .signup-step,
+    body.signup-flow-active #page-content > *:not(#signup-flow),
+    body.signup-flow-active > footer {
+        transition-duration: 0.01ms;
+        transition-delay: 0s;
+    }
+}

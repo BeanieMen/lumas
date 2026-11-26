@@ -65,6 +65,8 @@ struct HackClubMePayload {
 pub struct OAuthState {
     #[allow(dead_code)]
     pub email: Option<String>,
+    pub signup_name: Option<String>,
+    pub age: Option<i64>,
     pub next: Option<String>,
     pub created_at: Instant,
 }
@@ -87,7 +89,14 @@ impl AuthManager {
         }
     }
 
-    pub async fn store_state(&self, state: String, email: Option<String>, next: Option<String>) {
+    pub async fn store_state(
+        &self,
+        state: String,
+        email: Option<String>,
+        next: Option<String>,
+        signup_name: Option<String>,
+        age: Option<i64>,
+    ) {
         let mut map = self.states.write().await;
         let now = Instant::now();
         map.retain(|_, v| now.duration_since(v.created_at) < Duration::from_secs(600));
@@ -95,6 +104,8 @@ impl AuthManager {
             state,
             OAuthState {
                 email,
+                signup_name,
+                age,
                 next,
                 created_at: now,
             },
@@ -264,6 +275,8 @@ mod tests {
                 "state_1".into(),
                 Some("a@b.com".into()),
                 Some("/proposal".into()),
+                Some("Ada Lovelace".into()),
+                Some(16),
             )
             .await;
         let item = manager.take_state("state_1").await;
@@ -271,6 +284,8 @@ mod tests {
         let item = item.unwrap();
         assert_eq!(item.email.as_deref(), Some("a@b.com"));
         assert_eq!(item.next.as_deref(), Some("/proposal"));
+        assert_eq!(item.signup_name.as_deref(), Some("Ada Lovelace"));
+        assert_eq!(item.age, Some(16));
 
         // Single-use: taking again returns None
         assert!(manager.take_state("state_1").await.is_none());

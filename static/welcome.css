@@ -1,0 +1,114 @@
+.welcome-document {
+    margin: 0;
+    min-height: 100vh;
+    min-height: 100svh;
+    overflow: hidden;
+    background: #000;
+}
+
+.welcome-document #page-content {
+    width: 100%;
+    min-height: 100vh;
+    min-height: 100svh;
+    margin: 0;
+    background: #000;
+}
+
+.welcome-document > .site-footer {
+    display: none;
+}
+
+.welcome-page {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    place-items: center;
+    width: 100%;
+    min-height: 100vh;
+    min-height: 100svh;
+    padding: 0;
+    box-sizing: border-box;
+    background: #000;
+    color: #fff;
+    font-family: Arial, sans-serif;
+}
+
+.welcome-screen {
+    grid-area: 1 / 1;
+    display: grid;
+    justify-items: center;
+    align-content: center;
+    min-height: 100vh;
+    min-height: 100svh;
+    width: min(100%, 34rem);
+    box-sizing: border-box;
+    padding: 1.5rem;
+    text-align: center;
+    cursor: pointer;
+    opacity: 1;
+    transition: opacity 150ms ease;
+}
+
+.welcome-screen[hidden] {
+    display: none;
+}
+
+.welcome-screen.is-entering,
+.welcome-screen.is-leaving {
+    opacity: 0;
+}
+
+.welcome-letter {
+    width: 100%;
+    margin: 0;
+    font-size: clamp(1.25rem, 2.5vw, 1.8rem);
+    line-height: 1.55;
+    text-align: center;
+}
+
+.welcome-screen--emphasis .welcome-letter {
+    font-size: clamp(3rem, 8vw, 6rem);
+}
+
+.welcome-word {
+    display: inline-block;
+    opacity: 0;
+    transition: opacity 200ms ease;
+}
+
+.welcome-word.is-visible {
+    opacity: 1;
+}
+
+.welcome-period {
+    color: #fff;
+    font-family: Arial, sans-serif;
+}
+
+.welcome-continue {
+    position: fixed;
+    right: 1.5rem;
+    bottom: 1rem;
+    border: 0;
+    padding: 0.35rem 0.5rem;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.72);
+    font: inherit;
+    font-size: 0.75rem;
+    line-height: 1.2;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 0.25em;
+}
+
+.welcome-continue:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .welcome-screen,
+    .welcome-word {
+        opacity: 1;
+        transition: none;
+    }
+}

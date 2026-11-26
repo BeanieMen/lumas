@@ -10,7 +10,7 @@
   <link rel="icon" href="/favicon.ico" type="image/x-icon">
   {% block css %}{% endblock css %}
 </head>
-<body>
+<body class="{% block body_class %}{% endblock body_class %}">
   <main id="page-content">
     {% block body %}{% endblock body %}
   </main>
@@ -156,6 +156,8 @@
     hoverAudio.init();
   </script>
   <script src="/site-navigation.js" defer></script>
+  <script src="/welcome.js" defer></script>
+  <script src="/signup-flow.js" defer></script>
   <script src="/nav-liquid.js" defer></script>
   <script src="/scroll-split-card.js" defer></script>
   <script src="/butterfly-avoidance.js" defer></script>

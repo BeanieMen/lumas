@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}
+    Welcome
+{% endblock title %}
+
+{% block body_class %}
+    welcome-document
+{% endblock body_class %}
+
+{% block css %}
+    <link id="page-styles" rel="stylesheet" href="/welcome.css">
+{% endblock css %}
+
+{% block body %}
+    <section class="welcome-page" data-welcome-flow>
+        <section class="welcome-screen" data-welcome-screen aria-label="Welcome">
+            <p class="welcome-letter">
+                <span class="sr-only">Dear Hacker,</span>
+                <span data-screen-words aria-hidden="true">Dear Hacker,</span>
+            </p>
+            <button type="button" class="welcome-continue">Click to continue</button>
+        </section>
+        <section class="welcome-screen" data-welcome-screen aria-label="About Hackers" hidden>
+            <p class="welcome-letter">
+                <span class="sr-only">In a world burdened by conformity and unthinking rules, there are a select few who dare to defy expectations, challenge the status quo, and venture into the unknown. The hackers, are the ones with the talent, vision, and courage to create something better, and we need them more than ever.</span>
+                <span data-screen-words aria-hidden="true">In a world burdened by conformity and unthinking rules, there are a select few who dare to defy expectations, challenge the status quo, and venture into the unknown. The hackers, are the ones with the talent, vision, and courage to create something better, and we need them more than ever.</span>
+            </p>
+            <button type="button" class="welcome-continue">Click to continue</button>
+        </section>
+        <section class="welcome-screen" data-welcome-screen aria-label="Supporting hackers" hidden>
+            <p class="welcome-letter">
+                <span class="sr-only">For too long, hackers have been misunderstood and underappreciated, their potential undervalued. It's time to change that, to acknowledge and celebrate the unique gifts that hackers bring to the world. You as doners can be the lifeblood of our best futures.</span>
+                <span data-screen-words aria-hidden="true">For too long, hackers have been misunderstood and underappreciated, their potential undervalued. It's time to change that, to acknowledge and celebrate the unique gifts that hackers bring to the world. You as doners can be the lifeblood of our best futures.</span>
+            </p>
+            <button type="button" class="welcome-continue">Click to continue</button>
+        </section>
+        <section class="welcome-screen" data-welcome-screen aria-label="Unthinking rules" hidden>
+            <p class="welcome-letter">
+                <span class="sr-only">Some people are allergic to unthinking rules and bad systems.</span>
+                <span data-screen-words aria-hidden="true">Some people are allergic to unthinking rules and bad systems.</span>
+            </p>
+            <button type="button" class="welcome-continue">Click to continue</button>
+        </section>
+        <section class="welcome-screen" data-welcome-screen aria-label="Better ideas" hidden>
+            <p class="welcome-letter">
+                <span class="sr-only">A few also have the talent and vision to will something better into being:</span>
+                <span data-screen-words aria-hidden="true">A few also have the talent and vision to will something better into being:</span>
+            </p>
+            <button type="button" class="welcome-continue">Click to continue</button>
+        </section>
+        <section class="welcome-screen welcome-screen--emphasis" data-welcome-screen aria-label="Hackers" hidden>
+            <p class="welcome-letter">
+                <span class="sr-only">hackers.</span>
+                <span data-screen-words data-emphasize-word="hackers" aria-hidden="true">hackers.</span>
+            </p>
+            <button type="button" class="welcome-continue">Click to continue</button>
+        </section>
+        <section class="welcome-screen" data-welcome-screen aria-label="Embrace hackers" hidden>
+            <p class="welcome-letter">
+                <span class="sr-only">We can either embrace them and reap the magic, or alienate them and suffer the loss.</span>
+                <span data-screen-words aria-hidden="true">We can either embrace them and reap the magic, or alienate them and suffer the loss.</span>
+            </p>
+            <button type="button" class="welcome-continue">Click to continue</button>
+        </section>
+        <section class="welcome-screen" data-welcome-screen aria-label="A wiser path" hidden>
+            <p class="welcome-letter">
+                <span class="sr-only">It's time we chose the wiser path.</span>
+                <span data-screen-words aria-hidden="true">It's time we chose the wiser path.</span>
+            </p>
+            <a class="welcome-continue" href="/">Click to continue</a>
+        </section>
+    </section>
+{% endblock body %}
