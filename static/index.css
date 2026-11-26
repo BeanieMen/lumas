@@ -372,12 +372,20 @@ html,body {
 
 .split-card {
     position: relative;
+    display: block;
     flex: 1 1 0;
     min-width: 0;
     height: 100%;
+    color: inherit;
+    text-decoration: none;
     transform: translateX(var(--split-x, 0px)) rotateY(var(--split-rotate-y, 0deg)) rotateZ(var(--split-rotate-z, 0deg));
     transform-style: preserve-3d;
     will-change: transform;
+}
+
+.split-card:focus-visible {
+    outline: 2px solid #d7efff;
+    outline-offset: 5px;
 }
 
 .split-card-front,
@@ -442,6 +450,19 @@ html,body {
     width: 100%;
     height: 68%;
     object-fit: cover;
+    transition: transform 350ms ease, filter 350ms ease;
+}
+
+.split-card:hover .split-program-image,
+.split-card:focus-visible .split-program-image {
+    transform: scale(1.08);
+    filter: brightness(1.12) drop-shadow(0 0 12px rgba(157, 213, 255, 0.75));
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .split-program-image {
+        transition: none;
+    }
 }
 
 .split-program-logo {
