@@ -14,6 +14,57 @@
   <main id="page-content">
     {% block body %}{% endblock body %}
   </main>
+  <footer class="site-footer" aria-labelledby="footer-title">
+    <h2 id="footer-title" class="sr-only">Lumas site footer</h2>
+    <div class="footer-frame">
+      <div class="footer-upper">
+        <nav class="footer-nav" aria-label="Footer navigation">
+          <a href="https://hackclub.com/philanthropy" target="_blank" rel="noopener noreferrer">Donate</a>
+          <a href="https://hackclub.com/parents" target="_blank" rel="noopener noreferrer">For Parents</a>
+          <a href="https://hackclub.com/privacy-and-terms" target="_blank" rel="noopener noreferrer">Terms &amp; Conditions</a>
+          <a href="https://hackclub.com/safeguarding" target="_blank" rel="noopener noreferrer">Safeguarding</a>
+          <a href="https://hackclub.com/fiscal-sponsorship" target="_blank" rel="noopener noreferrer">HCB</a>
+          <a href="https://hackclub.com/programs" target="_blank" rel="noopener noreferrer">Programs</a>
+          <a href="https://hackclub.com/clubs" target="_blank" rel="noopener noreferrer">Clubs</a>
+          <a href="https://hackclub.com/imprint" target="_blank" rel="noopener noreferrer">Imprint</a>
+        </nav>
+
+        <a class="footer-logo-link" href="/" aria-label="Lumas home">
+          <img
+            class="footer-logo"
+            src="/lumas-logo.png"
+            alt="Lumas"
+          >
+        </a>
+      </div>
+
+      <div class="footer-divider" role="presentation"></div>
+
+      <div class="footer-lower">
+        <div class="footer-copy">
+          <p class="footer-trademark">&copy; HackClub</p>
+          <p>
+            Hack Club is a 501(c)(3) nonprofit and network of 60k+ technical high schoolers. We believe you learn best by building so we're creating community and providing grants so you can make awesome projects. In the past few years, we've <a href="https://summer.hackclub.com/">partnered with GitHub to run Summer of Making</a>, <a href="https://www.youtube.com/watch?v=2BID8_pGuqA">ran a cross-country hackathon on a train across America</a>, and <a href="https://apocalypse.hackclub.com/">hosted Canada's largest high school hackathon</a>.
+          </p>
+          <p>
+            Brought to you by Wizarding World Digital and its parent company Warner Bros.
+            Entertainment Inc., delivering the latest news and official products from the
+            Wizarding World and our partners.
+          </p>
+          <p>
+            All characters and elements &copy; &amp; TM Warner Bros. Entertainment Inc.
+            Publishing Rights &copy; J.K. Rowling.
+          </p>
+        </div>
+
+        <nav class="social-links" aria-label="Social media">
+          <a href="https://www.youtube.com/channel/UCQzO0jpcRkP-9eWKMpJyB0w" target="_blank" rel="noopener noreferrer" aria-label="YouTube">YouTube</a>
+          <a href="https://www.instagram.com/starthackclub/?hl=en" target="_blank" rel="noopener noreferrer" aria-label="Instagram">Instagram</a>
+          <a href="https://github.com/hackclub" target="_blank" rel="noopener noreferrer" aria-label="GitHub">GitHub</a>
+        </nav>
+      </div>
+    </div>
+  </footer>
   <audio id="bg-music" loop preload="metadata">
     <source src="https://cdn.hackclub.com/01a17cdd-72cb-7468-bc0e-e258081f88db/Lumas%20Magic%20Loop%20-%20usesuno.com.mp3" type="audio/mpeg">
   </audio>
@@ -105,6 +156,8 @@
     hoverAudio.init();
   </script>
   <script src="/site-navigation.js" defer></script>
+  <script src="/nav-liquid.js" defer></script>
+  <script src="/scroll-split-card.js" defer></script>
   <script src="/butterfly-avoidance.js" defer></script>
   <script src="/smooth-cursor.js?v=4" defer></script>
 </body>
