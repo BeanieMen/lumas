@@ -93,12 +93,21 @@
         </form>
       </nav>
     </div>
-    </section>
+    <div class="dign">
+        {% if auth_enabled and not user %}
+        <form class="gh" action="/auth/hackclub/login" method="get">
+            <input id="signup-email" type="email" name="email" placeholder="Enter your email..." autocomplete="email" required>
+            <button id="buts" type="submit">Start !</button>
+        </form>
+        {% endif %}
+    </div>
 
+    </section>
     <div class="split-section-divider" aria-hidden="true">
         <span class="split-divider-line"></span>
         <span class="split-divider-star split-divider-star-center"></span>
     </div>
+    
 
     <section class="scroll-split-section" aria-label="Hack Club flagship programs">
         <div class="scroll-split-stage">

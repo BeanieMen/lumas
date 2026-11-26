@@ -634,3 +634,37 @@ html,body {
         opacity: 1;
     }
 }
+
+.dign {
+    height: 13rem;
+    width: 30rem;
+    position: absolute;
+    top: 30rem;
+    left: 7rem;
+    border-radius: 2.4rem;
+    background-image: url("https://cdn.hackclub.com/01a21785-4738-7a80-bb84-f4fd0e11da54/Untitled%20design%20-%202026-11-26T163215.905.png");
+    background-size: cover;
+    background-repeat: no-repeat;
+}
+
+.gh {
+    position: absolute;
+    top: 40%;
+    left: 17%;
+}
+
+#signup-email {
+    height: 2rem ;
+    padding-left: 0.6rem;
+    width: 13rem;
+    border-radius: 0.6rem;
+    border: 1px solid white;
+}
+#buts {
+    height: 2.2rem ;
+    width: 5rem;
+    padding-left: 0.6rem;
+    border-radius: 0.6rem;
+    border: 1px solid white;
+    background-color: #f0f0f0;
+}
