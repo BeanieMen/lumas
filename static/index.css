@@ -673,4 +673,29 @@ html,body {
     border-radius: 0.6rem;
     border: 1px solid white;
     background-color: #f0f0f0;
+    cursor: pointer;
+    transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+#buts:hover {
+    transform: translateY(-2px);
+    border-color: #d3b06a;
+    background-color: #d3b06a;
+    box-shadow: 0 5px 14px rgba(211, 176, 106, 0.35);
+}
+
+#buts:focus-visible {
+    outline: 2px solid #d3b06a;
+    outline-offset: 3px;
+}
+
+#buts:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(211, 176, 106, 0.25);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #buts {
+        transition: none;
+    }
 }
