@@ -714,6 +714,7 @@ body.signup-flow-active > footer {
     position: fixed;
     inset: 0;
     z-index: 10000;
+    isolation: isolate;
     display: grid;
     place-items: center;
     box-sizing: border-box;
@@ -727,6 +728,16 @@ body.signup-flow-active > footer {
     transition: opacity 350ms ease, visibility 350ms ease;
 }
 
+.aurora-flow-background {
+    position: absolute;
+    z-index: -1;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
 body.signup-flow-active #signup-flow {
     opacity: 1;
     visibility: visible;
@@ -734,6 +745,8 @@ body.signup-flow-active #signup-flow {
 }
 
 .signup-step {
+    position: relative;
+    z-index: 1;
     grid-area: 1 / 1;
     display: grid;
     justify-items: center;

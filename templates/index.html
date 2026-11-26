@@ -105,6 +105,7 @@
     </section>
     {% if auth_enabled and not user %}
     <div id="signup-flow" aria-hidden="true">
+        <canvas class="aurora-flow-background" data-aurora-flow aria-hidden="true"></canvas>
         <form class="signup-step" data-signup-step="name" aria-labelledby="signup-name-question" hidden>
             <h1 id="signup-name-question">What's your name?</h1>
             <input id="signup-name" type="text" name="name" autocomplete="name" required maxlength="100" aria-label="Your name">
