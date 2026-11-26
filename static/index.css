@@ -660,6 +660,12 @@ html,body {
     border-radius: 0.6rem;
     border: 1px solid white;
 }
+
+#signup-email:focus {
+    outline: 2px solid #d3b06a;
+    outline-offset: 2px;
+}
+
 #buts {
     height: 2.2rem ;
     width: 5rem;
