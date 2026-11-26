@@ -674,14 +674,12 @@ html,body {
     border: 1px solid white;
     background-color: #f0f0f0;
     cursor: pointer;
-    transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+    transition: box-shadow 180ms ease, transform 180ms ease;
 }
 
 #buts:hover {
     transform: translateY(-2px);
-    border-color: #d3b06a;
-    background-color: #d3b06a;
-    box-shadow: 0 5px 14px rgba(211, 176, 106, 0.35);
+    box-shadow: 0 5px 14px rgba(0, 0, 0, 0.3);
 }
 
 #buts:focus-visible {
@@ -691,7 +689,7 @@ html,body {
 
 #buts:active {
     transform: translateY(0);
-    box-shadow: 0 2px 6px rgba(211, 176, 106, 0.25);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
 @media (prefers-reduced-motion: reduce) {
