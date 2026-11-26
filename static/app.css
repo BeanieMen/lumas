@@ -193,3 +193,21 @@
     align-self: flex-start;
   }
 }
+
+@font-face {
+  font-family: "Lumas Heatwave";
+  src: url("https://cdn.hackclub.com/01a216a9-811d-7d9c-b2f2-4e5c84faa886/1-LumasHeatwave.woff2") format("woff2"),
+       url("https://cdn.hackclub.com/01a216a9-9dd2-70c2-9eb3-bde4ffa0e9dc/2-LumasHeatwave.woff") format("woff"),
+       url("https://cdn.hackclub.com/01a216a9-b933-79a6-8ee9-7370e5fc5d55/3-LumasHeatwave.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+.lumas-font {
+  font-family: "Lumas Heatwave", Georgia, serif;
+  font-weight: normal;
+  font-style: normal;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}

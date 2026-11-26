@@ -516,25 +516,26 @@ html,body {
     right: 1rem;
     left: 1rem;
     margin: 0;
-    color: rgba(235, 240, 255, 0.7);
     text-align: center;
     pointer-events: none;
 }
 
 .split-scroll-cue {
-    top: 23%;
+    top: 20%;
+    max-width: min(90vw, 58rem);
+    margin: 0 auto;
     transform: translateY(var(--split-cue-y, 0px));
     opacity: var(--split-cue-opacity, 1);
-    font-size: 0.72rem;
-    font-weight: 600;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
+    font-size: clamp(28px, 3.2vw, 42px);
+    font-weight: normal;
+    font-style: normal;
 }
 
 .split-ending {
     bottom: 14%;
     transform: translateY(var(--split-ending-y, 40px));
     opacity: var(--split-ending-opacity, 0);
+    color: rgba(235, 240, 255, 0.7);
     font-family: Georgia, serif;
     font-size: clamp(1.5rem, 4vw, 2.4rem);
     font-style: italic;
@@ -569,7 +570,7 @@ html,body {
     }
 
     .split-scroll-cue {
-        top: 25%;
+        top: 22%;
     }
 }
 
